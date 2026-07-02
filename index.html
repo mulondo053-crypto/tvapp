@@ -2,363 +2,451 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Channel Control — Stream Playlist Manager</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Master Control — Stream Playlist Manager</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-<!-- Firebase SDK (compat, loaded via CDN — no npm/build step needed) -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-
 <style>
   :root{
-    --bg-void:#0B0E11;
-    --bg-panel:#12161B;
-    --bg-card:#1A1F26;
-    --bg-card-hover:#20262E;
-    --border:#2A323C;
-    --border-soft:#1F252D;
-    --text-primary:#E9EBEE;
-    --text-muted:#8A93A1;
-    --text-dim:#5B6472;
-    --tally-red:#FF3B30;
-    --tally-red-dim:#4A1512;
-    --amber:#FFB020;
-    --amber-dim:#3D2E0C;
-    --live-green:#34D399;
-    --live-green-dim:#123326;
+    --bg:#0B0D0F;
+    --panel:#14171B;
+    --panel-2:#1B1F24;
+    --panel-3:#20252B;
+    --border:#262B31;
+    --border-soft:#1F242A;
+    --text:#E8EAED;
+    --text-muted:#8A9099;
+    --text-dim:#5A6069;
+    --tally-green:#3DDC84;
+    --tally-red:#E1443C;
+    --amber:#F2A93B;
+    --blue-hls:#4EA1FF;
+    --purple-mp4:#B084F5;
+    --orange-rtmp:#FF9A4D;
     --font-display:'Oswald',sans-serif;
     --font-body:'Inter',sans-serif;
-    --font-mono:'IBM Plex Mono',monospace;
+    --font-mono:'JetBrains Mono',monospace;
     --radius:10px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
     background:
-      radial-gradient(circle at 15% 0%, rgba(255,59,48,0.05), transparent 40%),
-      radial-gradient(circle at 85% 100%, rgba(255,176,32,0.04), transparent 45%),
-      var(--bg-void);
-    color:var(--text-primary);
+      radial-gradient(ellipse at top left, rgba(242,169,59,0.05), transparent 45%),
+      radial-gradient(ellipse at bottom right, rgba(78,161,255,0.05), transparent 50%),
+      var(--bg);
+    color:var(--text);
     font-family:var(--font-body);
     min-height:100vh;
     -webkit-font-smoothing:antialiased;
   }
-  ::selection{background:var(--tally-red-dim); color:var(--text-primary);}
+  ::selection{background:var(--amber);color:#0B0D0F;}
 
-  /* ---------- Top bar ---------- */
-  .topbar{
+  a{color:inherit;}
+
+  /* ---------- Topbar ---------- */
+  header.topbar{
     position:sticky; top:0; z-index:40;
-    display:flex; align-items:center; gap:16px;
-    padding:14px 22px;
-    background:rgba(11,14,17,0.92);
+    background:rgba(11,13,15,0.92);
     backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--border-soft);
-    flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+    padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
   }
-  .brand{display:flex; align-items:center; gap:10px; margin-right:auto;}
-  .brand .dot{
-    width:10px; height:10px; border-radius:50%;
-    background:var(--tally-red);
-    box-shadow:0 0 8px 2px rgba(255,59,48,0.6);
-    animation:pulse 2.2s ease-in-out infinite;
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:6px;
+    background:linear-gradient(135deg,var(--tally-red),var(--amber));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 14px rgba(225,68,60,0.35);
+    flex-shrink:0;
   }
-  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+  .brand-mark svg{width:18px;height:18px;}
   .brand h1{
-    font-family:var(--font-display); font-weight:600;
-    font-size:19px; letter-spacing:0.5px; margin:0; text-transform:uppercase;
+    font-family:var(--font-display);
+    font-size:19px; font-weight:600; letter-spacing:1.5px;
+    margin:0; text-transform:uppercase; line-height:1;
   }
-  .brand span.sub{
-    font-family:var(--font-mono); font-size:11px; color:var(--text-dim);
-    display:block; letter-spacing:0.5px;
-  }
-  .btn{
-    font-family:var(--font-body); font-weight:600; font-size:13px;
-    border:1px solid var(--border); background:var(--bg-card);
-    color:var(--text-primary); padding:9px 14px; border-radius:8px;
-    cursor:pointer; display:inline-flex; align-items:center; gap:7px;
-    transition:.15s ease; white-space:nowrap;
-  }
-  .btn:hover{background:var(--bg-card-hover); border-color:#3A4552;}
-  .btn:active{transform:translateY(1px);}
-  .btn-primary{
-    background:linear-gradient(180deg,#FF453C,#E22A1F);
-    border-color:#FF6157; color:#fff;
-    box-shadow:0 0 0 1px rgba(255,59,48,0.15), 0 4px 14px rgba(255,59,48,0.25);
-  }
-  .btn-primary:hover{filter:brightness(1.08);}
-  .btn-ghost{background:transparent;}
-  .btn-sm{padding:6px 10px; font-size:12px; border-radius:6px;}
-  .btn-icon{padding:8px; border-radius:8px;}
+  .brand p{margin:2px 0 0; font-size:11px; color:var(--text-dim); letter-spacing:0.5px;}
 
-  /* ---------- Layout ---------- */
-  .wrap{max-width:1180px; margin:0 auto; padding:26px 20px 80px;}
-  .section-head{display:flex; align-items:baseline; justify-content:space-between; margin:6px 0 16px; flex-wrap:wrap; gap:10px;}
-  .section-head h2{
-    font-family:var(--font-display); text-transform:uppercase; letter-spacing:0.6px;
-    font-size:14px; color:var(--text-muted); margin:0; font-weight:600;
-  }
-  .count-pill{
-    font-family:var(--font-mono); font-size:11px; color:var(--text-dim);
-    border:1px solid var(--border-soft); padding:3px 9px; border-radius:20px;
-  }
+  .topbar-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
 
-  /* ---------- Status banner ---------- */
+  button, .btn{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:13px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--text);
+    padding:9px 14px;
+    cursor:pointer;
+    display:inline-flex; align-items:center; gap:7px;
+    transition:all .15s ease;
+    white-space:nowrap;
+  }
+  button:hover{background:var(--panel-3); border-color:#333a42;}
+  button:active{transform:translateY(1px);}
+  button.primary{
+    background:linear-gradient(135deg,#2d8f5a,var(--tally-green));
+    border-color:transparent; color:#04150B;
+    box-shadow:0 2px 12px rgba(61,220,132,0.25);
+  }
+  button.primary:hover{filter:brightness(1.08);}
+  button.primary.dirty{
+    background:linear-gradient(135deg,#c47a1f,var(--amber));
+    box-shadow:0 2px 14px rgba(242,169,59,0.35);
+    animation:pulseDirty 1.8s ease-in-out infinite;
+  }
+  @keyframes pulseDirty{0%,100%{box-shadow:0 2px 14px rgba(242,169,59,0.35);}50%{box-shadow:0 2px 22px rgba(242,169,59,0.6);}}
+  button.danger{color:var(--tally-red); border-color:rgba(225,68,60,0.3);}
+  button.danger:hover{background:rgba(225,68,60,0.1);}
+  button.ghost{background:transparent;}
+  button.icon-only{padding:9px; width:36px; height:36px; justify-content:center;}
+  button:disabled{opacity:0.4; cursor:not-allowed;}
+  input[type=file]{display:none;}
+
+  /* ---------- Banner / toast ---------- */
+  #bannerWrap{
+    position:fixed; top:78px; left:50%; transform:translateX(-50%);
+    z-index:100; display:flex; flex-direction:column; gap:8px;
+    width:min(92vw,480px);
+  }
   .banner{
-    display:none; align-items:center; gap:10px;
-    font-family:var(--font-mono); font-size:12.5px;
-    padding:10px 14px; border-radius:8px; margin-bottom:18px;
-    border:1px solid; animation:slideIn .25s ease;
+    font-size:13px; font-weight:500;
+    padding:12px 14px; border-radius:8px;
+    display:flex; align-items:center; gap:10px;
+    border:1px solid; box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    animation:slideIn .25s ease;
   }
-  @keyframes slideIn{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);}}
-  .banner.show{display:flex;}
-  .banner.ok{background:var(--live-green-dim); border-color:#1E5C46; color:#7EEBC1;}
-  .banner.err{background:var(--tally-red-dim); border-color:#6B211A; color:#FF9B94;}
-  .banner.info{background:#1B2430; border-color:#2C3A4C; color:#9FC3E8;}
+  @keyframes slideIn{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:translateY(0);}}
+  .banner.success{background:rgba(61,220,132,0.12); border-color:rgba(61,220,132,0.4); color:var(--tally-green);}
+  .banner.error{background:rgba(225,68,60,0.12); border-color:rgba(225,68,60,0.4); color:#ff8079;}
+  .banner.info{background:rgba(78,161,255,0.12); border-color:rgba(78,161,255,0.4); color:var(--blue-hls);}
+  .banner .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;box-shadow:0 0 8px currentColor;}
+  .banner span.msg{flex:1;}
+  .banner .close{cursor:pointer; opacity:0.6; font-size:15px; line-height:1;}
+  .banner .close:hover{opacity:1;}
 
-  /* ---------- Config strip ---------- */
-  .config-strip{
-    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);
-    padding:8px 12px; border:1px dashed var(--border); border-radius:8px; margin-bottom:20px;
+  /* ---------- Main layout ---------- */
+  main{max-width:1180px; margin:0 auto; padding:28px 20px 80px;}
+
+  .toolbar-row{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; margin-bottom:20px; flex-wrap:wrap;
   }
-  .config-strip b{color:var(--text-muted); font-weight:600;}
-  .config-strip .flag{padding:2px 8px; border-radius:20px; font-weight:600;}
-  .flag.linked{background:var(--live-green-dim); color:var(--live-green);}
-  .flag.unlinked{background:var(--tally-red-dim); color:#FF9B94;}
+  .toolbar-row .count{
+    font-family:var(--font-mono); font-size:12px; color:var(--text-dim);
+    letter-spacing:0.5px;
+  }
 
-  /* ---------- Channel grid ---------- */
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px;}
+  /* ---------- Grid & Cards ---------- */
+  #channelGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+    gap:16px;
+  }
+
   .card{
-    background:var(--bg-card); border:1px solid var(--border-soft);
-    border-radius:var(--radius); padding:14px; cursor:grab; position:relative;
-    transition:.15s ease; overflow:hidden;
+    position:relative;
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    cursor:grab;
+    transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    overflow:hidden;
   }
-  .card:hover{border-color:#39424E; background:var(--bg-card-hover); transform:translateY(-1px);}
-  .card.dragging{opacity:.4;}
-  .card.drag-over{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset;}
-  .card.disabled{opacity:.55;}
-  .card-top{display:flex; align-items:flex-start; gap:10px;}
+  .card::before{
+    /* scanline texture */
+    content:"";
+    position:absolute; inset:0;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+  }
+  .card:hover{border-color:#3a4249; box-shadow:0 6px 20px rgba(0,0,0,0.35);}
+  .card.dragging{opacity:0.35;}
+  .card.drag-over{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber);}
+  .card.disabled{opacity:0.55;}
+
+  .default-flag{
+    position:absolute; top:0; right:0;
+    background:var(--amber); color:#231600;
+    font-family:var(--font-mono); font-size:9.5px; font-weight:700;
+    letter-spacing:1px; padding:4px 10px 4px 14px;
+    border-bottom-left-radius:8px;
+    clip-path:polygon(14px 0,100% 0,100% 100%,0 100%);
+  }
+
+  .card-top{display:flex; gap:12px; align-items:flex-start;}
   .logo-box{
-    width:46px; height:46px; border-radius:7px; background:#0F1317; flex-shrink:0;
-    border:1px solid var(--border-soft); display:flex; align-items:center; justify-content:center;
-    overflow:hidden; font-family:var(--font-mono); font-size:9px; color:var(--text-dim);
+    width:52px;height:52px;border-radius:8px;
+    background:var(--panel-3); border:1px solid var(--border-soft);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0; overflow:hidden;
   }
-  .logo-box img{width:100%; height:100%; object-fit:cover;}
-  .card-meta{flex:1; min-width:0;}
-  .ch-tag{
-    font-family:var(--font-mono); font-size:10px; color:var(--text-dim); letter-spacing:0.5px;
-    display:flex; align-items:center; gap:6px; margin-bottom:2px;
+  .logo-box img{width:100%;height:100%;object-fit:cover;}
+  .logo-box .fallback-icon{color:var(--text-dim);}
+
+  .card-title-wrap{flex:1; min-width:0;}
+  .card-title-row{display:flex; align-items:center; gap:8px;}
+  .tally{
+    width:9px;height:9px;border-radius:50%;flex-shrink:0;
+    background:var(--tally-red);
+    box-shadow:0 0 6px var(--tally-red);
   }
-  .status-dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
-  .status-dot.on{background:var(--live-green); box-shadow:0 0 6px 1px rgba(52,211,153,0.7);}
-  .status-dot.off{background:var(--tally-red); box-shadow:0 0 6px 1px rgba(255,59,48,0.5);}
-  .ch-name{font-weight:600; font-size:15px; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .ch-url{
-    font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  .tally.on{background:var(--tally-green); box-shadow:0 0 7px var(--tally-green);}
+  .card-title{
+    font-family:var(--font-display); font-size:16px; font-weight:600;
+    letter-spacing:0.3px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .badge{
-    font-family:var(--font-mono); font-size:9.5px; font-weight:600; letter-spacing:0.5px;
-    padding:2px 7px; border-radius:4px; border:1px solid var(--border); color:var(--text-muted);
-    text-transform:uppercase; flex-shrink:0;
+    font-family:var(--font-mono); font-size:9.5px; font-weight:700;
+    letter-spacing:0.8px; padding:2px 7px; border-radius:4px;
+    display:inline-block; margin-top:5px; text-transform:uppercase;
   }
-  .badge.hls{color:#8FD3FF; border-color:#2A4A5E;}
-  .badge.mp4{color:#C6A6FF; border-color:#3E2E5E;}
-  .badge.rtmp{color:#FFC98F; border-color:#5E4A2A;}
-  .default-tag{
-    position:absolute; top:0; right:0;
-    background:var(--amber); color:#1A1300; font-family:var(--font-mono);
-    font-size:9px; font-weight:700; padding:3px 9px 3px 12px; letter-spacing:0.5px;
-    border-bottom-left-radius:8px;
-  }
-  .card-actions{display:flex; gap:6px; margin-top:12px; flex-wrap:wrap;}
+  .badge.HLS{background:rgba(78,161,255,0.15); color:var(--blue-hls); border:1px solid rgba(78,161,255,0.3);}
+  .badge.MP4{background:rgba(176,132,245,0.15); color:var(--purple-mp4); border:1px solid rgba(176,132,245,0.3);}
+  .badge.RTMP{background:rgba(255,154,77,0.15); color:var(--orange-rtmp); border:1px solid rgba(255,154,77,0.3);}
 
-  /* ---------- Empty state ---------- */
-  .empty{
-    text-align:center; padding:60px 20px; color:var(--text-dim);
-    border:1px dashed var(--border); border-radius:var(--radius); font-family:var(--font-mono); font-size:13px;
+  .card-url{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted);
+    margin:12px 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background:rgba(0,0,0,0.25); padding:7px 9px; border-radius:6px;
+    border:1px solid var(--border-soft);
   }
+
+  .card-actions{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:14px; gap:8px;
+  }
+  .card-actions .left{display:flex; gap:6px;}
+  .switch{
+    position:relative; width:36px; height:20px; border-radius:20px;
+    background:var(--panel-3); border:1px solid var(--border); cursor:pointer;
+    flex-shrink:0; transition:background .15s ease;
+  }
+  .switch.on{background:rgba(61,220,132,0.35); border-color:var(--tally-green);}
+  .switch .knob{
+    position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%;
+    background:var(--text-dim); transition:transform .15s ease, background .15s ease;
+  }
+  .switch.on .knob{transform:translateX(16px); background:var(--tally-green);}
+
+  .drag-handle{color:var(--text-dim); font-size:14px; cursor:grab; padding:4px;}
+
+  .empty-state{
+    text-align:center; padding:70px 20px; color:var(--text-dim);
+    border:1px dashed var(--border); border-radius:var(--radius);
+  }
+  .empty-state h3{font-family:var(--font-display); color:var(--text-muted); letter-spacing:0.5px; margin:0 0 6px;}
+  .empty-state p{font-size:13px; margin:0 0 18px;}
 
   /* ---------- Modal ---------- */
   .overlay{
-    display:none; position:fixed; inset:0; background:rgba(6,8,10,0.72);
-    backdrop-filter:blur(3px); z-index:100; align-items:flex-start; justify-content:center;
-    padding:40px 16px; overflow-y:auto;
+    position:fixed; inset:0; background:rgba(6,7,8,0.72);
+    backdrop-filter:blur(3px);
+    display:none; align-items:flex-start; justify-content:center;
+    z-index:200; padding:5vh 16px; overflow-y:auto;
   }
   .overlay.show{display:flex;}
   .modal{
-    background:var(--bg-panel); border:1px solid var(--border); border-radius:12px;
-    width:100%; max-width:520px; padding:22px; animation:slideIn .2s ease;
+    background:var(--panel-2); border:1px solid var(--border);
+    border-radius:12px; width:100%; max-width:560px;
+    box-shadow:0 24px 60px rgba(0,0,0,0.55);
+    animation:modalIn .2s ease;
   }
-  .modal h3{
-    font-family:var(--font-display); text-transform:uppercase; letter-spacing:0.5px;
-    font-size:16px; margin:0 0 16px; display:flex; align-items:center; gap:8px;
+  @keyframes modalIn{from{opacity:0; transform:translateY(10px) scale(0.98);} to{opacity:1; transform:translateY(0) scale(1);}}
+  .modal-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 20px; border-bottom:1px solid var(--border);
   }
-  .field{margin-bottom:13px;}
-  .field label{
-    display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px;
-    font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.4px;
+  .modal-head h2{
+    font-family:var(--font-display); font-size:17px; letter-spacing:0.5px;
+    margin:0; text-transform:uppercase;
   }
-  .field input[type=text], .field input[type=url], .field select, .field input[type=password]{
-    width:100%; background:#0E1216; border:1px solid var(--border); color:var(--text-primary);
-    padding:9px 10px; border-radius:7px; font-family:var(--font-mono); font-size:12.5px;
-    outline:none; transition:.15s;
+  .modal-body{padding:20px;}
+  .modal-foot{
+    padding:16px 20px; border-top:1px solid var(--border);
+    display:flex; justify-content:flex-end; gap:8px;
   }
-  .field input:focus, .field select:focus{border-color:var(--amber);}
-  .field-row{display:flex; gap:8px; align-items:flex-end;}
-  .field-row .field{flex:1; margin-bottom:0;}
-  .toggle-row{display:flex; align-items:center; justify-content:space-between; margin:16px 0;
-    padding:10px 12px; background:#0E1216; border:1px solid var(--border-soft); border-radius:8px;}
-  .toggle-row label{font-size:12.5px; color:var(--text-muted); font-family:var(--font-mono);}
-  .switch{position:relative; width:38px; height:21px; flex-shrink:0;}
-  .switch input{opacity:0; width:0; height:0;}
-  .slider{position:absolute; inset:0; background:#3A424D; border-radius:20px; cursor:pointer; transition:.15s;}
-  .slider:before{content:""; position:absolute; width:15px; height:15px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s;}
-  input:checked + .slider{background:var(--live-green);}
-  input:checked + .slider:before{transform:translateX(17px);}
-  .modal-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:18px;}
-  .hint{font-size:10.5px; color:var(--text-dim); margin-top:4px; font-family:var(--font-mono); line-height:1.5;}
 
-  input[type=file]{display:none;}
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block; font-size:11.5px; font-weight:600; color:var(--text-muted);
+    letter-spacing:0.6px; text-transform:uppercase; margin-bottom:6px;
+  }
+  .field .hint{font-size:11px; color:var(--text-dim); margin-top:5px; font-weight:400; text-transform:none; letter-spacing:0;}
+  .field input[type=text], .field input[type=url], .field select{
+    width:100%; background:var(--panel); border:1px solid var(--border);
+    border-radius:7px; padding:10px 11px; color:var(--text);
+    font-family:var(--font-mono); font-size:13px;
+  }
+  .field select{font-family:var(--font-body); font-weight:500;}
+  .field input:focus, .field select:focus{outline:none; border-color:var(--amber); box-shadow:0 0 0 3px rgba(242,169,59,0.15);}
+  .url-row{display:flex; gap:8px;}
+  .url-row input{flex:1;}
+  .field-row-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .toggle-field{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
+  .toggle-field label{margin:0;}
+
+  /* ---------- Settings form specifics ---------- */
+  .settings-section{margin-bottom:22px;}
+  .settings-section h3{
+    font-family:var(--font-display); font-size:13px; letter-spacing:1px;
+    color:var(--amber); text-transform:uppercase; margin:0 0 12px;
+    padding-bottom:8px; border-bottom:1px solid var(--border-soft);
+  }
+
+  footer{
+    text-align:center; color:var(--text-dim); font-size:11.5px;
+    padding:26px 20px; font-family:var(--font-mono);
+  }
 
   @media (max-width:640px){
-    .topbar{padding:12px 14px;}
-    .btn span.label{display:none;}
-    .wrap{padding:18px 12px 60px;}
+    .field-row-2{grid-template-columns:1fr;}
+    header.topbar{padding:12px 14px;}
+    .brand h1{font-size:16px;}
+    main{padding:20px 14px 70px;}
+    .topbar-actions button span.label{display:none;}
   }
 </style>
 </head>
 <body>
 
-<div class="topbar">
+<header class="topbar">
   <div class="brand">
-    <span class="dot"></span>
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0B0D0F" stroke-width="2.4"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M8 3l4 3 4-3"/></svg>
+    </div>
     <div>
-      <h1>Channel Control</h1>
-      <span class="sub">stream playlist manager</span>
+      <h1>Master Control</h1>
+      <p>streams.json playlist manager</p>
     </div>
   </div>
-  <button class="btn btn-ghost btn-icon" id="btnSettings" title="Firebase settings">⚙</button>
-  <button class="btn" id="btnDownload"><span>⭳</span><span class="label">Download Backup</span></button>
-  <button class="btn" id="btnRestore"><span>⭱</span><span class="label">Restore Backup</span></button>
-  <input type="file" id="fileRestore" accept="application/json">
-  <button class="btn btn-primary" id="btnSave"><span>●</span><span class="label">Save &amp; Publish</span></button>
-</div>
+  <div class="topbar-actions">
+    <button id="btnSettings" class="ghost icon-only" title="Settings">⚙</button>
+    <button id="btnRestore" class="ghost"><span>⭱</span><span class="label">Restore</span></button>
+    <input type="file" id="restoreInput" accept="application/json">
+    <button id="btnBackup" class="ghost"><span>⬇</span><span class="label">Download Backup</span></button>
+    <button id="btnSave" class="primary"><span>📡</span><span class="label">Save &amp; Publish</span></button>
+  </div>
+</header>
 
-<div class="wrap">
+<div id="bannerWrap"></div>
 
-  <div id="banner" class="banner"></div>
-
-  <div class="config-strip">
-    <span><b>Firebase link:</b> <span id="linkFlag" class="flag unlinked">not configured</span></span>
-    <span id="bucketLabel"></span>
-    <span style="margin-left:auto; cursor:pointer; text-decoration:underline;" id="editConfigLink">edit connection</span>
+<main>
+  <div class="toolbar-row">
+    <button id="btnAdd" class="primary" style="background:linear-gradient(135deg,#3a4249,#20252B); color:var(--text); box-shadow:none; border:1px solid var(--border);">+ Add Channel</button>
+    <div class="count" id="channelCount">0 CHANNELS LOADED</div>
   </div>
 
-  <div class="section-head">
-    <h2>Playlist — drag to reorder, first card is the app's startup default</h2>
-    <span class="count-pill" id="countPill">0 channels</span>
+  <div id="channelGrid"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <h3>No channels loaded</h3>
+    <p>Add a channel manually, restore a backup, or set a source URL in Settings.</p>
+    <button id="btnEmptyAdd" class="primary" style="background:linear-gradient(135deg,#2d8f5a,var(--tally-green)); color:#04150B;">+ Add your first channel</button>
   </div>
 
-  <div class="grid" id="grid"></div>
+  <footer>MASTER CONTROL · first card in the list is the app's startup default · drag cards to reorder</footer>
+</main>
 
-  <div class="section-head" style="margin-top:26px;">
-    <h2>Add channel</h2>
-  </div>
-  <div class="card" style="cursor:default;">
-    <div class="field-row">
-      <div class="field"><label>Channel name</label><input type="text" id="newName" placeholder="e.g. Soweto TV"></div>
-      <div class="field"><label>Type</label>
-        <select id="newType"><option>HLS</option><option>MP4</option><option>RTMP</option></select>
-      </div>
-    </div>
-    <div class="field" style="margin-top:11px;">
-      <label>Stream URL</label>
-      <div class="field-row">
-        <div class="field"><input type="text" id="newUrl" placeholder="https://.../playlist.m3u8"></div>
-        <button class="btn btn-sm" id="newTestBtn">Test</button>
-      </div>
-    </div>
-    <div class="field"><label>Logo URL</label><input type="text" id="newLogo" placeholder="https://.../logo.png"></div>
-    <div class="field-row">
-      <div class="field"><label>Fallback URL</label><input type="text" id="newFallback" placeholder="optional"></div>
-      <div class="field"><label>Off-air MP4 URL</label><input type="text" id="newOffair" placeholder="optional"></div>
-    </div>
-    <div class="toggle-row">
-      <label>Enabled on add</label>
-      <div class="switch"><input type="checkbox" id="newEnabled" checked><span class="slider"></span></div>
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-primary" id="btnAddChannel">+ Add channel</button>
-    </div>
-  </div>
-
-</div>
-
-<!-- Edit modal -->
-<div class="overlay" id="editOverlay">
+<!-- Channel Add/Edit Modal -->
+<div class="overlay" id="channelOverlay">
   <div class="modal">
-    <h3>Edit channel</h3>
-    <div class="field"><label>Channel name</label><input type="text" id="editName"></div>
-    <div class="field-row">
-      <div class="field"><label>Type</label>
-        <select id="editType"><option>HLS</option><option>MP4</option><option>RTMP</option></select>
+    <div class="modal-head">
+      <h2 id="channelModalTitle">Add Channel</h2>
+      <button class="ghost icon-only" id="closeChannelModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Channel Name</label>
+        <input type="text" id="fName" placeholder="e.g. Soweto TV">
+      </div>
+      <div class="field">
+        <label>Stream URL</label>
+        <div class="url-row">
+          <input type="url" id="fUrl" placeholder="https://.../playlist.m3u8">
+          <button id="btnTestStream" type="button">Test Stream</button>
+        </div>
+      </div>
+      <div class="field-row-2">
+        <div class="field">
+          <label>Type</label>
+          <select id="fType">
+            <option value="HLS">HLS</option>
+            <option value="MP4">MP4</option>
+            <option value="RTMP">RTMP</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Logo URL</label>
+          <input type="url" id="fLogo" placeholder="https://.../logo.png">
+        </div>
+      </div>
+      <div class="field">
+        <label>Fallback URL</label>
+        <input type="url" id="fFallback" placeholder="Optional backup stream">
+      </div>
+      <div class="field">
+        <label>Off-air MP4 URL</label>
+        <input type="url" id="fOffair" placeholder="Optional — plays when channel is off air">
+      </div>
+      <div class="toggle-field">
+        <div class="switch" id="fEnabledSwitch"><div class="knob"></div></div>
+        <label style="text-transform:none; font-weight:500; color:var(--text);">Channel enabled</label>
       </div>
     </div>
-    <div class="field" style="margin-top:11px;">
-      <label>Stream URL</label>
-      <div class="field-row">
-        <div class="field"><input type="text" id="editUrl"></div>
-        <button class="btn btn-sm" id="editTestBtn">Test</button>
-      </div>
-    </div>
-    <div class="field"><label>Logo URL</label><input type="text" id="editLogo"></div>
-    <div class="field-row">
-      <div class="field"><label>Fallback URL</label><input type="text" id="editFallback"></div>
-      <div class="field"><label>Off-air MP4 URL</label><input type="text" id="editOffair"></div>
-    </div>
-    <div class="toggle-row">
-      <label>Channel enabled</label>
-      <div class="switch"><input type="checkbox" id="editEnabled"><span class="slider"></span></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" id="editDeleteBtn" style="margin-right:auto; color:#FF9B94; border-color:#4A1F1A;">Delete channel</button>
-      <button class="btn" id="editCancelBtn">Cancel</button>
-      <button class="btn btn-primary" id="editSaveBtn">Save</button>
+    <div class="modal-foot">
+      <button class="ghost" id="cancelChannel">Cancel</button>
+      <button class="primary" id="saveChannel" style="background:linear-gradient(135deg,#2d8f5a,var(--tally-green)); color:#04150B;">Save Channel</button>
     </div>
   </div>
 </div>
 
-<!-- Settings modal -->
+<!-- Settings Modal -->
 <div class="overlay" id="settingsOverlay">
   <div class="modal">
-    <h3>Firebase connection</h3>
-    <div class="field"><label>API key</label><input type="text" id="cfgApiKey" placeholder="AIza..."></div>
-    <div class="field"><label>Project ID</label><input type="text" id="cfgProjectId" placeholder="sowetotv"></div>
-    <div class="field"><label>Storage bucket</label><input type="text" id="cfgBucket" placeholder="sowetotv.appspot.com"></div>
-    <div class="field"><label>App ID</label><input type="text" id="cfgAppId" placeholder="1:xxxx:web:xxxx"></div>
-    <div class="field">
-      <label>Path to streams.json inside the bucket</label>
-      <input type="text" id="cfgPath" placeholder="streams.json" value="streams.json">
+    <div class="modal-head">
+      <h2>Settings</h2>
+      <button class="ghost icon-only" id="closeSettingsModal">✕</button>
     </div>
-    <div class="field">
-      <label>Public download URL (used to load the playlist)</label>
-      <input type="text" id="cfgDownloadUrl" placeholder="https://firebasestorage.googleapis.com/...">
-      <div class="hint">Paste your existing streams.json download URL, or leave blank and click "Fetch download URL" after saving once your bucket rules allow it.</div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h3>Load Source</h3>
+        <div class="field">
+          <label>Public streams.json URL</label>
+          <input type="url" id="sSourceUrl" placeholder="https://your-host.com/streams.json">
+          <div class="hint">Must be publicly reachable and allow cross-origin requests (CORS). Used to load the live playlist into this dashboard.</div>
+        </div>
+        <button id="btnReloadSource" type="button">Reload from Source</button>
+      </div>
+      <div class="settings-section">
+        <h3>Firebase Publish Target</h3>
+        <div class="field">
+          <div class="hint" style="margin-bottom:10px;">Browsers can't write directly to an arbitrary web server. Save &amp; Publish uploads streams.json to Firebase Storage at the path below, overwriting the file your app reads from. Leave blank to disable auto-publish (you'll fall back to manual download).</div>
+        </div>
+        <div class="field-row-2">
+          <div class="field"><label>API Key</label><input type="text" id="sApiKey"></div>
+          <div class="field"><label>Project ID</label><input type="text" id="sProjectId"></div>
+        </div>
+        <div class="field-row-2">
+          <div class="field"><label>Storage Bucket</label><input type="text" id="sStorageBucket" placeholder="your-app.appspot.com"></div>
+          <div class="field"><label>App ID</label><input type="text" id="sAppId"></div>
+        </div>
+        <div class="field">
+          <label>Storage Path</label>
+          <input type="text" id="sStoragePath" placeholder="streams.json">
+        </div>
+      </div>
     </div>
-    <div class="toggle-row">
-      <label>Sign in anonymously before writing (needed if your Storage rules require auth)</label>
-      <div class="switch"><input type="checkbox" id="cfgUseAuth"><span class="slider"></span></div>
-    </div>
-    <div class="hint" style="margin-top:8px;">
-      Your Storage security rules must allow read/write for this to work from a browser — e.g. rules scoped to authenticated users, or public rules if you accept the risk. Nothing here is sent anywhere except directly to your own Firebase project.
-    </div>
-    <div class="modal-actions">
-      <button class="btn" id="settingsCancelBtn">Cancel</button>
-      <button class="btn btn-primary" id="settingsSaveBtn">Save connection</button>
+    <div class="modal-foot">
+      <button class="ghost" id="cancelSettings">Cancel</button>
+      <button class="primary" id="saveSettings" style="background:linear-gradient(135deg,#2d8f5a,var(--tally-green)); color:#04150B;">Save Settings</button>
     </div>
   </div>
 </div>
@@ -367,147 +455,211 @@
 (function(){
   "use strict";
 
-  const LS_CONFIG = "chctrl_firebase_config";
-  const LS_DATA = "chctrl_channels_cache";
+  /* ============ Seed / Demo data (used only if no source configured / fetch fails) ============ */
+  const SEED = {
+    channels: [
+      { name:"Soweto TV", url:"https://cdn.freevisiontv.co.za/sttv/smil:soweto.stream.smil/chunklist_b1550000.m3u8", type:"HLS", logo:"https://yourlogourl.com/sowetotv.png", fallback_url:"https://your-backup-stream.m3u8", offair_url:"https://firebasestorage.googleapis.com/your-offair.mp4", enabled:true },
+      { name:"Channel 2", url:"https://your-second-stream.m3u8", type:"HLS", logo:"https://yourlogourl.com/channel2.png", fallback_url:"", offair_url:"", enabled:true }
+    ]
+  };
 
+  const STORAGE_KEY = "masterControl_config_v1";
   let channels = [];
-  let firebaseApp = null;
+  let editingIndex = null; // null = add mode
+  let dirty = false;
   let dragSrcIndex = null;
-  let editingIndex = null;
+  let usingSeed = false;
 
-  // ---------- seed data (from the uploaded streams.json, used until Firebase is linked) ----------
-  const seedChannels = [
-    {name:"Soweto TV", url:"https://cdn.freevisiontv.co.za/sttv/smil:soweto.stream.smil/chunklist_b1550000.m3u8", type:"HLS", logo:"https://yourlogourl.com/sowetotv.png", fallback_url:"https://your-backup-stream.m3u8", offair_url:"https://firebasestorage.googleapis.com/your-offair.mp4", enabled:true},
-    {name:"Channel 2", url:"https://your-second-stream.m3u8", type:"HLS", logo:"https://yourlogourl.com/channel2.png", fallback_url:"", offair_url:"", enabled:true}
-  ];
+  /* ============ DOM refs ============ */
+  const grid = document.getElementById("channelGrid");
+  const emptyState = document.getElementById("emptyState");
+  const channelCount = document.getElementById("channelCount");
+  const bannerWrap = document.getElementById("bannerWrap");
 
-  // ---------- helpers ----------
-  const $ = id => document.getElementById(id);
+  const channelOverlay = document.getElementById("channelOverlay");
+  const settingsOverlay = document.getElementById("settingsOverlay");
 
-  function showBanner(msg, kind){
-    const b = $("banner");
-    b.textContent = msg;
-    b.className = "banner show " + kind;
-    if(kind !== "err"){
-      clearTimeout(showBanner._t);
-      showBanner._t = setTimeout(()=>{ b.classList.remove("show"); }, 6000);
+  const fName = document.getElementById("fName");
+  const fUrl = document.getElementById("fUrl");
+  const fType = document.getElementById("fType");
+  const fLogo = document.getElementById("fLogo");
+  const fFallback = document.getElementById("fFallback");
+  const fOffair = document.getElementById("fOffair");
+  const fEnabledSwitch = document.getElementById("fEnabledSwitch");
+
+  const sSourceUrl = document.getElementById("sSourceUrl");
+  const sApiKey = document.getElementById("sApiKey");
+  const sProjectId = document.getElementById("sProjectId");
+  const sStorageBucket = document.getElementById("sStorageBucket");
+  const sAppId = document.getElementById("sAppId");
+  const sStoragePath = document.getElementById("sStoragePath");
+
+  /* ============ Utilities ============ */
+  function uid(){ return 'c_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+  function normalize(list){
+    return (list || []).map(ch => ({
+      id: ch.id || uid(),
+      name: ch.name || "Untitled Channel",
+      url: ch.url || "",
+      type: ["HLS","MP4","RTMP"].includes(ch.type) ? ch.type : "HLS",
+      logo: ch.logo || "",
+      fallback_url: ch.fallback_url || "",
+      offair_url: ch.offair_url || "",
+      enabled: ch.enabled !== false
+    }));
+  }
+
+  function showBanner(type, message, timeout){
+    const el = document.createElement("div");
+    el.className = "banner " + type;
+    el.innerHTML = '<span class="dot"></span><span class="msg"></span><span class="close">✕</span>';
+    el.querySelector(".msg").textContent = message;
+    el.querySelector(".close").addEventListener("click", () => el.remove());
+    bannerWrap.appendChild(el);
+    if (timeout !== 0){
+      setTimeout(() => el.remove(), timeout || 5000);
     }
+  }
+
+  function markDirty(){
+    dirty = true;
+    document.getElementById("btnSave").classList.add("dirty");
+  }
+  function clearDirty(){
+    dirty = false;
+    document.getElementById("btnSave").classList.remove("dirty");
   }
 
   function loadConfig(){
     try{
-      const raw = localStorage.getItem(LS_CONFIG);
-      return raw ? JSON.parse(raw) : null;
-    }catch(e){ return null; }
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ return {}; }
   }
-  function saveConfig(cfg){ localStorage.setItem(LS_CONFIG, JSON.stringify(cfg)); }
-
-  function loadCachedChannels(){
-    try{
-      const raw = localStorage.getItem(LS_DATA);
-      return raw ? JSON.parse(raw) : null;
-    }catch(e){ return null; }
-  }
-  function cacheChannels(){ localStorage.setItem(LS_DATA, JSON.stringify(channels)); }
-
-  function refreshConfigStrip(){
-    const cfg = loadConfig();
-    const flag = $("linkFlag");
-    const label = $("bucketLabel");
-    if(cfg && cfg.projectId && cfg.bucket){
-      flag.textContent = "linked";
-      flag.className = "flag linked";
-      label.textContent = "bucket: " + cfg.bucket + " · path: " + (cfg.path || "streams.json");
-    }else{
-      flag.textContent = "not configured";
-      flag.className = "flag unlinked";
-      label.textContent = "";
-    }
+  function saveConfig(cfg){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
   }
 
-  function ensureFirebaseInit(cfg){
-    if(!cfg || !cfg.apiKey || !cfg.projectId || !cfg.bucket){
-      throw new Error("Firebase connection is not fully configured. Open the gear icon and fill in the details.");
-    }
-    if(!firebaseApp){
-      firebaseApp = firebase.initializeApp({
-        apiKey: cfg.apiKey,
-        authDomain: cfg.projectId + ".firebaseapp.com",
-        projectId: cfg.projectId,
-        storageBucket: cfg.bucket,
-        appId: cfg.appId || undefined
-      });
-    }
-    return firebaseApp;
+  /* ============ Rendering ============ */
+  function iconSvg(){
+    return '<svg class="fallback-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M8 3l4 3 4-3"/></svg>';
   }
 
-  // ---------- rendering ----------
   function render(){
-    const grid = $("grid");
     grid.innerHTML = "";
-    $("countPill").textContent = channels.length + (channels.length === 1 ? " channel" : " channels");
+    channelCount.textContent = channels.length + (channels.length === 1 ? " CHANNEL LOADED" : " CHANNELS LOADED") + (usingSeed ? " · DEMO DATA" : "");
+    emptyState.style.display = channels.length ? "none" : "block";
 
-    if(channels.length === 0){
-      grid.innerHTML = '<div class="empty" style="grid-column:1/-1;">No channels yet. Add one below, or restore a backup.</div>';
-      return;
-    }
-
-    channels.forEach((ch, i) => {
+    channels.forEach((ch, index) => {
       const card = document.createElement("div");
-      card.className = "card" + (ch.enabled === false ? " disabled" : "");
+      card.className = "card" + (ch.enabled ? "" : " disabled");
       card.draggable = true;
-      card.dataset.index = i;
+      card.dataset.index = index;
 
-      const typeClass = (ch.type || "HLS").toLowerCase();
-      const logoHtml = ch.logo
-        ? `<img src="${escapeAttr(ch.logo)}" onerror="this.parentElement.textContent='NO LOGO'; this.remove();">`
-        : "NO LOGO";
+      if (index === 0){
+        const flag = document.createElement("div");
+        flag.className = "default-flag";
+        flag.textContent = "STARTUP DEFAULT";
+        card.appendChild(flag);
+      }
 
-      card.innerHTML = `
-        ${i === 0 ? '<div class="default-tag">DEFAULT</div>' : ''}
-        <div class="card-top">
-          <div class="logo-box">${logoHtml}</div>
-          <div class="card-meta">
-            <div class="ch-tag">
-              <span class="status-dot ${ch.enabled === false ? 'off' : 'on'}"></span>
-              CH ${String(i+1).padStart(2,'0')}
-              <span class="badge ${typeClass}">${escapeHtml(ch.type || 'HLS')}</span>
-            </div>
-            <p class="ch-name">${escapeHtml(ch.name || 'Untitled channel')}</p>
-            <div class="ch-url">${escapeHtml(ch.url || 'no url set')}</div>
-          </div>
+      const top = document.createElement("div");
+      top.className = "card-top";
+
+      const logoBox = document.createElement("div");
+      logoBox.className = "logo-box";
+      if (ch.logo){
+        const img = document.createElement("img");
+        img.src = ch.logo;
+        img.alt = ch.name;
+        img.onerror = () => { logoBox.innerHTML = iconSvg(); };
+        logoBox.appendChild(img);
+      } else {
+        logoBox.innerHTML = iconSvg();
+      }
+
+      const titleWrap = document.createElement("div");
+      titleWrap.className = "card-title-wrap";
+      titleWrap.innerHTML = `
+        <div class="card-title-row">
+          <div class="tally ${ch.enabled ? 'on' : ''}"></div>
+          <h3 class="card-title"></h3>
         </div>
-        <div class="card-actions">
-          <button class="btn btn-sm" data-action="edit">Edit</button>
-          <button class="btn btn-sm" data-action="test">Test stream</button>
-          <button class="btn btn-sm" data-action="toggle">${ch.enabled === false ? 'Enable' : 'Disable'}</button>
-          <button class="btn btn-sm" data-action="delete" style="color:#FF9B94;">Delete</button>
+        <span class="badge ${ch.type}"></span>
+      `;
+      titleWrap.querySelector(".card-title").textContent = ch.name;
+      titleWrap.querySelector(".badge").textContent = ch.type;
+
+      top.appendChild(logoBox);
+      top.appendChild(titleWrap);
+      card.appendChild(top);
+
+      const urlLine = document.createElement("div");
+      urlLine.className = "card-url";
+      urlLine.textContent = ch.url || "(no url set)";
+      card.appendChild(urlLine);
+
+      const actions = document.createElement("div");
+      actions.className = "card-actions";
+      actions.innerHTML = `
+        <div class="left">
+          <button class="ghost icon-only" data-act="edit" title="Edit">✎</button>
+          <button class="ghost icon-only" data-act="test" title="Test stream">▶</button>
+          <button class="ghost icon-only danger" data-act="delete" title="Delete">🗑</button>
         </div>
       `;
+      const switchEl = document.createElement("div");
+      switchEl.className = "switch" + (ch.enabled ? " on" : "");
+      switchEl.innerHTML = '<div class="knob"></div>';
+      switchEl.title = "Enable / disable";
+      actions.appendChild(switchEl);
+      card.appendChild(actions);
 
-      card.addEventListener("click", (e) => {
-        const btn = e.target.closest("button");
-        if(!btn) return;
-        const action = btn.dataset.action;
-        if(action === "edit") openEdit(i);
-        if(action === "test") window.open(ch.url, "_blank");
-        if(action === "toggle"){ ch.enabled = ch.enabled === false ? true : false; cacheChannels(); render(); }
-        if(action === "delete") deleteChannel(i);
+      // interactions
+      switchEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        channels[index].enabled = !channels[index].enabled;
+        markDirty();
+        render();
       });
+      actions.querySelector('[data-act="edit"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        openChannelModal("edit", index);
+      });
+      actions.querySelector('[data-act="test"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        testStream(ch.url);
+      });
+      actions.querySelector('[data-act="delete"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteChannel(index);
+      });
+      card.addEventListener("click", () => openChannelModal("edit", index));
 
-      card.addEventListener("dragstart", () => { dragSrcIndex = i; card.classList.add("dragging"); });
-      card.addEventListener("dragend", () => { card.classList.remove("dragging"); document.querySelectorAll(".drag-over").forEach(c=>c.classList.remove("drag-over")); });
-      card.addEventListener("dragover", (e) => { e.preventDefault(); card.classList.add("drag-over"); });
+      // drag reorder
+      card.addEventListener("dragstart", () => {
+        dragSrcIndex = index;
+        card.classList.add("dragging");
+      });
+      card.addEventListener("dragend", () => {
+        card.classList.remove("dragging");
+        document.querySelectorAll(".card").forEach(c => c.classList.remove("drag-over"));
+      });
+      card.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        card.classList.add("drag-over");
+      });
       card.addEventListener("dragleave", () => card.classList.remove("drag-over"));
       card.addEventListener("drop", (e) => {
         e.preventDefault();
         card.classList.remove("drag-over");
-        const destIndex = i;
-        if(dragSrcIndex === null || dragSrcIndex === destIndex) return;
-        const moved = channels.splice(dragSrcIndex, 1)[0];
+        const destIndex = index;
+        if (dragSrcIndex === null || dragSrcIndex === destIndex) return;
+        const [moved] = channels.splice(dragSrcIndex, 1);
         channels.splice(destIndex, 0, moved);
         dragSrcIndex = null;
-        cacheChannels();
+        markDirty();
         render();
       });
 
@@ -515,224 +667,258 @@
     });
   }
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-  function escapeAttr(s){ return escapeHtml(s); }
-
-  // ---------- add ----------
-  $("btnAddChannel").addEventListener("click", () => {
-    const name = $("newName").value.trim();
-    const url = $("newUrl").value.trim();
-    if(!name || !url){ showBanner("Channel name and stream URL are required.", "err"); return; }
-    channels.push({
-      name, url,
-      type: $("newType").value,
-      logo: $("newLogo").value.trim(),
-      fallback_url: $("newFallback").value.trim(),
-      offair_url: $("newOffair").value.trim(),
-      enabled: $("newEnabled").checked
-    });
-    ["newName","newUrl","newLogo","newFallback","newOffair"].forEach(id => $(id).value = "");
-    $("newEnabled").checked = true;
-    cacheChannels();
-    render();
-    showBanner("Channel added — remember to Save & Publish.", "info");
-  });
-  $("newTestBtn").addEventListener("click", () => {
-    const url = $("newUrl").value.trim();
-    if(url) window.open(url, "_blank"); else showBanner("Enter a stream URL first.", "err");
-  });
-
-  // ---------- edit ----------
-  function openEdit(i){
-    editingIndex = i;
-    const ch = channels[i];
-    $("editName").value = ch.name || "";
-    $("editType").value = ch.type || "HLS";
-    $("editUrl").value = ch.url || "";
-    $("editLogo").value = ch.logo || "";
-    $("editFallback").value = ch.fallback_url || "";
-    $("editOffair").value = ch.offair_url || "";
-    $("editEnabled").checked = ch.enabled !== false;
-    $("editOverlay").classList.add("show");
-  }
-  $("editCancelBtn").addEventListener("click", () => $("editOverlay").classList.remove("show"));
-  $("editTestBtn").addEventListener("click", () => {
-    const url = $("editUrl").value.trim();
-    if(url) window.open(url, "_blank"); else showBanner("Enter a stream URL first.", "err");
-  });
-  $("editSaveBtn").addEventListener("click", () => {
-    const name = $("editName").value.trim();
-    const url = $("editUrl").value.trim();
-    if(!name || !url){ showBanner("Channel name and stream URL are required.", "err"); return; }
-    channels[editingIndex] = {
-      name, url,
-      type: $("editType").value,
-      logo: $("editLogo").value.trim(),
-      fallback_url: $("editFallback").value.trim(),
-      offair_url: $("editOffair").value.trim(),
-      enabled: $("editEnabled").checked
-    };
-    cacheChannels();
-    render();
-    $("editOverlay").classList.remove("show");
-    showBanner("Channel updated — remember to Save & Publish.", "info");
-  });
-  $("editDeleteBtn").addEventListener("click", () => {
-    $("editOverlay").classList.remove("show");
-    deleteChannel(editingIndex);
-  });
-
-  function deleteChannel(i){
-    const ch = channels[i];
-    if(!confirm(`Delete "${ch.name || 'this channel'}"? This can't be undone once published.`)) return;
-    channels.splice(i, 1);
-    cacheChannels();
-    render();
-    showBanner("Channel deleted — remember to Save & Publish.", "info");
-  }
-
-  // ---------- settings ----------
-  $("btnSettings").addEventListener("click", openSettings);
-  $("editConfigLink").addEventListener("click", openSettings);
-  function openSettings(){
-    const cfg = loadConfig() || {};
-    $("cfgApiKey").value = cfg.apiKey || "";
-    $("cfgProjectId").value = cfg.projectId || "";
-    $("cfgBucket").value = cfg.bucket || "";
-    $("cfgAppId").value = cfg.appId || "";
-    $("cfgPath").value = cfg.path || "streams.json";
-    $("cfgDownloadUrl").value = cfg.downloadUrl || "";
-    $("cfgUseAuth").checked = !!cfg.useAuth;
-    $("settingsOverlay").classList.add("show");
-  }
-  $("settingsCancelBtn").addEventListener("click", () => $("settingsOverlay").classList.remove("show"));
-  $("settingsSaveBtn").addEventListener("click", () => {
-    const cfg = {
-      apiKey: $("cfgApiKey").value.trim(),
-      projectId: $("cfgProjectId").value.trim(),
-      bucket: $("cfgBucket").value.trim(),
-      appId: $("cfgAppId").value.trim(),
-      path: $("cfgPath").value.trim() || "streams.json",
-      downloadUrl: $("cfgDownloadUrl").value.trim(),
-      useAuth: $("cfgUseAuth").checked
-    };
-    saveConfig(cfg);
-    firebaseApp = null; // force re-init with new config
-    refreshConfigStrip();
-    $("settingsOverlay").classList.remove("show");
-    showBanner("Connection saved.", "ok");
-    if(cfg.downloadUrl) fetchFromFirebase(cfg.downloadUrl);
-  });
-
-  // ---------- load from Firebase ----------
-  function fetchFromFirebase(url){
-    showBanner("Loading playlist from Firebase…", "info");
-    fetch(url, {cache:"no-store"})
-      .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-      .then(data => {
-        if(!data || !Array.isArray(data.channels)) throw new Error("streams.json is missing a channels array.");
-        channels = data.channels.map(c => ({ enabled:true, ...c }));
-        cacheChannels();
-        render();
-        showBanner("Playlist loaded from Firebase.", "ok");
-      })
-      .catch(err => {
-        showBanner("Couldn't load streams.json: " + err.message, "err");
-      });
-  }
-
-  // ---------- save to Firebase ----------
-  $("btnSave").addEventListener("click", () => {
-    const cfg = loadConfig();
-    cacheChannels();
-    let app;
-    try{
-      app = ensureFirebaseInit(cfg);
-    }catch(err){
-      showBanner(err.message, "err");
+  function testStream(url){
+    if (!url || !url.trim()){
+      showBanner("error", "No stream URL to test.", 3500);
       return;
     }
+    window.open(url.trim(), "_blank", "noopener");
+  }
 
-    const payload = JSON.stringify({ channels }, null, 2);
-    const doWrite = () => {
-      const storageRef = app.storage().ref(cfg.path);
-      $("btnSave").disabled = true;
-      showBanner("Publishing playlist to Firebase…", "info");
-      storageRef.putString(payload, "raw", {contentType:"application/json"})
-        .then(() => storageRef.getDownloadURL())
-        .then(url => {
-          const updated = loadConfig();
-          updated.downloadUrl = url;
-          saveConfig(updated);
-          refreshConfigStrip();
-          $("cfgDownloadUrl").value = url;
-          showBanner("Playlist updated — changes live in 30 seconds.", "ok");
-        })
-        .catch(err => {
-          showBanner("Save failed: " + err.message, "err");
-        })
-        .finally(() => { $("btnSave").disabled = false; });
-    };
-
-    if(cfg.useAuth){
-      app.auth().signInAnonymously().then(doWrite).catch(err => {
-        showBanner("Auth failed: " + err.message, "err");
-      });
-    }else{
-      doWrite();
-    }
+  /* ============ Add / Edit modal ============ */
+  function openChannelModal(mode, index){
+    editingIndex = mode === "edit" ? index : null;
+    document.getElementById("channelModalTitle").textContent = mode === "edit" ? "Edit Channel" : "Add Channel";
+    const ch = mode === "edit" ? channels[index] : { name:"", url:"", type:"HLS", logo:"", fallback_url:"", offair_url:"", enabled:true };
+    fName.value = ch.name;
+    fUrl.value = ch.url;
+    fType.value = ch.type;
+    fLogo.value = ch.logo;
+    fFallback.value = ch.fallback_url;
+    fOffair.value = ch.offair_url;
+    setSwitch(fEnabledSwitch, ch.enabled);
+    channelOverlay.classList.add("show");
+    fName.focus();
+  }
+  function closeChannelModalFn(){
+    channelOverlay.classList.remove("show");
+    editingIndex = null;
+  }
+  function setSwitch(el, on){
+    el.classList.toggle("on", !!on);
+    el.dataset.on = on ? "1" : "0";
+  }
+  fEnabledSwitch.addEventListener("click", () => {
+    setSwitch(fEnabledSwitch, fEnabledSwitch.dataset.on !== "1");
   });
 
-  // ---------- backup / restore ----------
-  $("btnDownload").addEventListener("click", () => {
-    const payload = JSON.stringify({ channels }, null, 2);
-    const blob = new Blob([payload], {type:"application/json"});
+  document.getElementById("btnTestStream").addEventListener("click", () => testStream(fUrl.value));
+  document.getElementById("closeChannelModal").addEventListener("click", closeChannelModalFn);
+  document.getElementById("cancelChannel").addEventListener("click", closeChannelModalFn);
+  channelOverlay.addEventListener("click", (e) => { if (e.target === channelOverlay) closeChannelModalFn(); });
+
+  document.getElementById("saveChannel").addEventListener("click", () => {
+    const name = fName.value.trim();
+    const url = fUrl.value.trim();
+    if (!name){ showBanner("error", "Channel name is required.", 4000); fName.focus(); return; }
+    if (!url){ showBanner("error", "Stream URL is required.", 4000); fUrl.focus(); return; }
+
+    const obj = {
+      id: editingIndex !== null ? channels[editingIndex].id : uid(),
+      name, url,
+      type: fType.value,
+      logo: fLogo.value.trim(),
+      fallback_url: fFallback.value.trim(),
+      offair_url: fOffair.value.trim(),
+      enabled: fEnabledSwitch.dataset.on === "1"
+    };
+
+    if (editingIndex !== null){
+      channels[editingIndex] = obj;
+    } else {
+      channels.push(obj);
+    }
+    markDirty();
+    closeChannelModalFn();
+    render();
+    showBanner("info", editingIndex !== null ? "Channel updated. Remember to Save & Publish." : "Channel added. Remember to Save & Publish.", 4000);
+  });
+
+  function deleteChannel(index){
+    const ch = channels[index];
+    const ok = confirm(`Delete "${ch.name}"? This can't be undone until you Save & Publish.`);
+    if (!ok) return;
+    channels.splice(index, 1);
+    markDirty();
+    render();
+    showBanner("info", `"${ch.name}" removed. Remember to Save & Publish.`, 4000);
+  }
+
+  document.getElementById("btnAdd").addEventListener("click", () => openChannelModal("add"));
+  document.getElementById("btnEmptyAdd").addEventListener("click", () => openChannelModal("add"));
+
+  /* ============ Settings modal ============ */
+  function openSettings(){
+    const cfg = loadConfig();
+    sSourceUrl.value = cfg.sourceUrl || "";
+    sApiKey.value = cfg.apiKey || "";
+    sProjectId.value = cfg.projectId || "";
+    sStorageBucket.value = cfg.storageBucket || "";
+    sAppId.value = cfg.appId || "";
+    sStoragePath.value = cfg.storagePath || "streams.json";
+    settingsOverlay.classList.add("show");
+  }
+  function closeSettings(){ settingsOverlay.classList.remove("show"); }
+
+  document.getElementById("btnSettings").addEventListener("click", openSettings);
+  document.getElementById("closeSettingsModal").addEventListener("click", closeSettings);
+  document.getElementById("cancelSettings").addEventListener("click", closeSettings);
+  settingsOverlay.addEventListener("click", (e) => { if (e.target === settingsOverlay) closeSettings(); });
+
+  document.getElementById("saveSettings").addEventListener("click", () => {
+    const cfg = {
+      sourceUrl: sSourceUrl.value.trim(),
+      apiKey: sApiKey.value.trim(),
+      projectId: sProjectId.value.trim(),
+      storageBucket: sStorageBucket.value.trim(),
+      appId: sAppId.value.trim(),
+      storagePath: sStoragePath.value.trim() || "streams.json"
+    };
+    saveConfig(cfg);
+    closeSettings();
+    showBanner("success", "Settings saved.", 3000);
+  });
+
+  document.getElementById("btnReloadSource").addEventListener("click", () => {
+    const url = sSourceUrl.value.trim();
+    if (!url){ showBanner("error", "Enter a source URL first.", 3500); return; }
+    fetchFromSource(url, true);
+  });
+
+  /* ============ Load channels ============ */
+  function fetchFromSource(url, isManualReload){
+    showBanner("info", "Loading streams.json from source…", 2500);
+    fetch(url, { cache: "no-store" })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        channels = normalize(data.channels);
+        usingSeed = false;
+        clearDirty();
+        render();
+        showBanner("success", "Loaded " + channels.length + " channel(s) from source.", 4000);
+      })
+      .catch(err => {
+        showBanner("error", "Couldn't load from source (" + err.message + ")." + (isManualReload ? "" : " Showing demo data instead."), 6000);
+        if (!isManualReload && channels.length === 0){
+          channels = normalize(SEED.channels);
+          usingSeed = true;
+          render();
+        }
+      });
+  }
+
+  function initialLoad(){
+    const cfg = loadConfig();
+    if (cfg.sourceUrl){
+      fetchFromSource(cfg.sourceUrl, false);
+    } else {
+      channels = normalize(SEED.channels);
+      usingSeed = true;
+      render();
+      showBanner("info", "Showing demo data. Open Settings to point this dashboard at your live streams.json.", 7000);
+    }
+  }
+
+  /* ============ Backup / Restore ============ */
+  document.getElementById("btnBackup").addEventListener("click", () => {
+    const payload = { channels: channels.map(stripInternal) };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
     a.href = URL.createObjectURL(blob);
-    a.download = "streams-backup-" + new Date().toISOString().slice(0,10) + ".json";
+    a.download = `streams-backup-${ts}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    showBanner("Backup downloaded.", "ok");
+    showBanner("success", "Backup downloaded.", 3500);
   });
 
-  $("btnRestore").addEventListener("click", () => $("fileRestore").click());
-  $("fileRestore").addEventListener("change", (e) => {
+  function stripInternal(ch){
+    const { id, ...rest } = ch;
+    return rest;
+  }
+
+  document.getElementById("btnRestore").addEventListener("click", () => {
+    document.getElementById("restoreInput").click();
+  });
+  document.getElementById("restoreInput").addEventListener("change", (e) => {
     const file = e.target.files[0];
-    if(!file) return;
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       try{
         const data = JSON.parse(reader.result);
-        if(!data || !Array.isArray(data.channels)) throw new Error("File doesn't contain a channels array.");
-        channels = data.channels.map(c => ({ enabled:true, ...c }));
-        cacheChannels();
+        if (!data || !Array.isArray(data.channels)) throw new Error("Missing 'channels' array");
+        channels = normalize(data.channels);
+        usingSeed = false;
+        markDirty();
         render();
-        showBanner("Backup restored into the dashboard — Save & Publish to push it live.", "ok");
+        showBanner("success", `Restored ${channels.length} channel(s) from backup. Remember to Save & Publish.`, 5000);
       }catch(err){
-        showBanner("Couldn't read that file: " + err.message, "err");
+        showBanner("error", "Restore failed: " + err.message, 6000);
       }
+      e.target.value = "";
     };
     reader.readAsText(file);
-    e.target.value = "";
   });
 
-  // ---------- init ----------
-  function init(){
-    const cached = loadCachedChannels();
-    channels = cached || seedChannels.map(c => ({...c}));
-    refreshConfigStrip();
-    render();
-    const cfg = loadConfig();
-    if(cfg && cfg.downloadUrl){
-      fetchFromFirebase(cfg.downloadUrl);
-    }else{
-      showBanner("Working from local data. Open the gear icon to connect your Firebase project.", "info");
+  /* ============ Save & Publish ============ */
+  let fbApp = null;
+  function getFirebaseStorage(cfg){
+    if (!fbApp){
+      fbApp = firebase.initializeApp({
+        apiKey: cfg.apiKey,
+        authDomain: cfg.projectId ? `${cfg.projectId}.firebaseapp.com` : undefined,
+        projectId: cfg.projectId,
+        storageBucket: cfg.storageBucket,
+        appId: cfg.appId
+      });
     }
+    return firebase.storage();
   }
-  init();
+
+  document.getElementById("btnSave").addEventListener("click", () => {
+    const cfg = loadConfig();
+    const payload = { channels: channels.map(stripInternal) };
+    const json = JSON.stringify(payload, null, 2);
+
+    const hasFirebase = cfg.apiKey && cfg.storageBucket && cfg.appId;
+    if (!hasFirebase){
+      showBanner("error", "No Firebase publish target configured. Downloading a backup instead — add Firebase details in Settings to auto-publish.", 6500);
+      document.getElementById("btnBackup").click();
+      return;
+    }
+
+    showBanner("info", "Publishing streams.json…", 3000);
+    try{
+      const storage = getFirebaseStorage(cfg);
+      const path = cfg.storagePath || "streams.json";
+      const ref = storage.ref().child(path);
+      ref.putString(json, "raw", { contentType: "application/json" })
+        .then(() => {
+          clearDirty();
+          showBanner("success", "Playlist updated — changes live in 30 seconds.", 6000);
+        })
+        .catch(err => {
+          showBanner("error", "Publish failed: " + err.message, 7000);
+        });
+    }catch(err){
+      showBanner("error", "Publish failed: " + err.message, 7000);
+    }
+  });
+
+  window.addEventListener("beforeunload", (e) => {
+    if (dirty){
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+
+  /* ============ Init ============ */
+  initialLoad();
 })();
 </script>
 </body>
