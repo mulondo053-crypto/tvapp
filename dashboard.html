@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Channel Control — Stream Playlist Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK (compat, loaded via CDN — no npm/build step needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<style>
+  :root{
+    --bg-void:#0B0E11;
+    --bg-panel:#12161B;
+    --bg-card:#1A1F26;
+    --bg-card-hover:#20262E;
+    --border:#2A323C;
+    --border-soft:#1F252D;
+    --text-primary:#E9EBEE;
+    --text-muted:#8A93A1;
+    --text-dim:#5B6472;
+    --tally-red:#FF3B30;
+    --tally-red-dim:#4A1512;
+    --amber:#FFB020;
+    --amber-dim:#3D2E0C;
+    --live-green:#34D399;
+    --live-green-dim:#123326;
+    --font-display:'Oswald',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,59,48,0.05), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(255,176,32,0.04), transparent 45%),
+      var(--bg-void);
+    color:var(--text-primary);
+    font-family:var(--font-body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--tally-red-dim); color:var(--text-primary);}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:16px;
+    padding:14px 22px;
+    background:rgba(11,14,17,0.92);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border-soft);
+    flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:10px; margin-right:auto;}
+  .brand .dot{
+    width:10px; height:10px; border-radius:50%;
+    background:var(--tally-red);
+    box-shadow:0 0 8px 2px rgba(255,59,48,0.6);
+    animation:pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+  .brand h1{
+    font-family:var(--font-display); font-weight:600;
+    font-size:19px; letter-spacing:0.5px; margin:0; text-transform:uppercase;
+  }
+  .brand span.sub{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-dim);
+    display:block; letter-spacing:0.5px;
+  }
+  .btn{
+    font-family:var(--font-body); font-weight:600; font-size:13px;
+    border:1px solid var(--border); background:var(--bg-card);
+    color:var(--text-primary); padding:9px 14px; border-radius:8px;
+    cursor:pointer; display:inline-flex; align-items:center; gap:7px;
+    transition:.15s ease; white-space:nowrap;
+  }
+  .btn:hover{background:var(--bg-card-hover); border-color:#3A4552;}
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{
+    background:linear-gradient(180deg,#FF453C,#E22A1F);
+    border-color:#FF6157; color:#fff;
+    box-shadow:0 0 0 1px rgba(255,59,48,0.15), 0 4px 14px rgba(255,59,48,0.25);
+  }
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-ghost{background:transparent;}
+  .btn-sm{padding:6px 10px; font-size:12px; border-radius:6px;}
+  .btn-icon{padding:8px; border-radius:8px;}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:1180px; margin:0 auto; padding:26px 20px 80px;}
+  .section-head{display:flex; align-items:baseline; justify-content:space-between; margin:6px 0 16px; flex-wrap:wrap; gap:10px;}
+  .section-head h2{
+    font-family:var(--font-display); text-transform:uppercase; letter-spacing:0.6px;
+    font-size:14px; color:var(--text-muted); margin:0; font-weight:600;
+  }
+  .count-pill{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-dim);
+    border:1px solid var(--border-soft); padding:3px 9px; border-radius:20px;
+  }
+
+  /* ---------- Status banner ---------- */
+  .banner{
+    display:none; align-items:center; gap:10px;
+    font-family:var(--font-mono); font-size:12.5px;
+    padding:10px 14px; border-radius:8px; margin-bottom:18px;
+    border:1px solid; animation:slideIn .25s ease;
+  }
+  @keyframes slideIn{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);}}
+  .banner.show{display:flex;}
+  .banner.ok{background:var(--live-green-dim); border-color:#1E5C46; color:#7EEBC1;}
+  .banner.err{background:var(--tally-red-dim); border-color:#6B211A; color:#FF9B94;}
+  .banner.info{background:#1B2430; border-color:#2C3A4C; color:#9FC3E8;}
+
+  /* ---------- Config strip ---------- */
+  .config-strip{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);
+    padding:8px 12px; border:1px dashed var(--border); border-radius:8px; margin-bottom:20px;
+  }
+  .config-strip b{color:var(--text-muted); font-weight:600;}
+  .config-strip .flag{padding:2px 8px; border-radius:20px; font-weight:600;}
+  .flag.linked{background:var(--live-green-dim); color:var(--live-green);}
+  .flag.unlinked{background:var(--tally-red-dim); color:#FF9B94;}
+
+  /* ---------- Channel grid ---------- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px;}
+  .card{
+    background:var(--bg-card); border:1px solid var(--border-soft);
+    border-radius:var(--radius); padding:14px; cursor:grab; position:relative;
+    transition:.15s ease; overflow:hidden;
+  }
+  .card:hover{border-color:#39424E; background:var(--bg-card-hover); transform:translateY(-1px);}
+  .card.dragging{opacity:.4;}
+  .card.drag-over{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset;}
+  .card.disabled{opacity:.55;}
+  .card-top{display:flex; align-items:flex-start; gap:10px;}
+  .logo-box{
+    width:46px; height:46px; border-radius:7px; background:#0F1317; flex-shrink:0;
+    border:1px solid var(--border-soft); display:flex; align-items:center; justify-content:center;
+    overflow:hidden; font-family:var(--font-mono); font-size:9px; color:var(--text-dim);
+  }
+  .logo-box img{width:100%; height:100%; object-fit:cover;}
+  .card-meta{flex:1; min-width:0;}
+  .ch-tag{
+    font-family:var(--font-mono); font-size:10px; color:var(--text-dim); letter-spacing:0.5px;
+    display:flex; align-items:center; gap:6px; margin-bottom:2px;
+  }
+  .status-dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
+  .status-dot.on{background:var(--live-green); box-shadow:0 0 6px 1px rgba(52,211,153,0.7);}
+  .status-dot.off{background:var(--tally-red); box-shadow:0 0 6px 1px rgba(255,59,48,0.5);}
+  .ch-name{font-weight:600; font-size:15px; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ch-url{
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .badge{
+    font-family:var(--font-mono); font-size:9.5px; font-weight:600; letter-spacing:0.5px;
+    padding:2px 7px; border-radius:4px; border:1px solid var(--border); color:var(--text-muted);
+    text-transform:uppercase; flex-shrink:0;
+  }
+  .badge.hls{color:#8FD3FF; border-color:#2A4A5E;}
+  .badge.mp4{color:#C6A6FF; border-color:#3E2E5E;}
+  .badge.rtmp{color:#FFC98F; border-color:#5E4A2A;}
+  .default-tag{
+    position:absolute; top:0; right:0;
+    background:var(--amber); color:#1A1300; font-family:var(--font-mono);
+    font-size:9px; font-weight:700; padding:3px 9px 3px 12px; letter-spacing:0.5px;
+    border-bottom-left-radius:8px;
+  }
+  .card-actions{display:flex; gap:6px; margin-top:12px; flex-wrap:wrap;}
+
+  /* ---------- Empty state ---------- */
+  .empty{
+    text-align:center; padding:60px 20px; color:var(--text-dim);
+    border:1px dashed var(--border); border-radius:var(--radius); font-family:var(--font-mono); font-size:13px;
+  }
+
+  /* ---------- Modal ---------- */
+  .overlay{
+    display:none; position:fixed; inset:0; background:rgba(6,8,10,0.72);
+    backdrop-filter:blur(3px); z-index:100; align-items:flex-start; justify-content:center;
+    padding:40px 16px; overflow-y:auto;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:12px;
+    width:100%; max-width:520px; padding:22px; animation:slideIn .2s ease;
+  }
+  .modal h3{
+    font-family:var(--font-display); text-transform:uppercase; letter-spacing:0.5px;
+    font-size:16px; margin:0 0 16px; display:flex; align-items:center; gap:8px;
+  }
+  .field{margin-bottom:13px;}
+  .field label{
+    display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px;
+    font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.4px;
+  }
+  .field input[type=text], .field input[type=url], .field select, .field input[type=password]{
+    width:100%; background:#0E1216; border:1px solid var(--border); color:var(--text-primary);
+    padding:9px 10px; border-radius:7px; font-family:var(--font-mono); font-size:12.5px;
+    outline:none; transition:.15s;
+  }
+  .field input:focus, .field select:focus{border-color:var(--amber);}
+  .field-row{display:flex; gap:8px; align-items:flex-end;}
+  .field-row .field{flex:1; margin-bottom:0;}
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; margin:16px 0;
+    padding:10px 12px; background:#0E1216; border:1px solid var(--border-soft); border-radius:8px;}
+  .toggle-row label{font-size:12.5px; color:var(--text-muted); font-family:var(--font-mono);}
+  .switch{position:relative; width:38px; height:21px; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{position:absolute; inset:0; background:#3A424D; border-radius:20px; cursor:pointer; transition:.15s;}
+  .slider:before{content:""; position:absolute; width:15px; height:15px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s;}
+  input:checked + .slider{background:var(--live-green);}
+  input:checked + .slider:before{transform:translateX(17px);}
+  .modal-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:18px;}
+  .hint{font-size:10.5px; color:var(--text-dim); margin-top:4px; font-family:var(--font-mono); line-height:1.5;}
+
+  input[type=file]{display:none;}
+
+  @media (max-width:640px){
+    .topbar{padding:12px 14px;}
+    .btn span.label{display:none;}
+    .wrap{padding:18px 12px 60px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <div>
+      <h1>Channel Control</h1>
+      <span class="sub">stream playlist manager</span>
+    </div>
+  </div>
+  <button class="btn btn-ghost btn-icon" id="btnSettings" title="Firebase settings">⚙</button>
+  <button class="btn" id="btnDownload"><span>⭳</span><span class="label">Download Backup</span></button>
+  <button class="btn" id="btnRestore"><span>⭱</span><span class="label">Restore Backup</span></button>
+  <input type="file" id="fileRestore" accept="application/json">
+  <button class="btn btn-primary" id="btnSave"><span>●</span><span class="label">Save &amp; Publish</span></button>
+</div>
+
+<div class="wrap">
+
+  <div id="banner" class="banner"></div>
+
+  <div class="config-strip">
+    <span><b>Firebase link:</b> <span id="linkFlag" class="flag unlinked">not configured</span></span>
+    <span id="bucketLabel"></span>
+    <span style="margin-left:auto; cursor:pointer; text-decoration:underline;" id="editConfigLink">edit connection</span>
+  </div>
+
+  <div class="section-head">
+    <h2>Playlist — drag to reorder, first card is the app's startup default</h2>
+    <span class="count-pill" id="countPill">0 channels</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="section-head" style="margin-top:26px;">
+    <h2>Add channel</h2>
+  </div>
+  <div class="card" style="cursor:default;">
+    <div class="field-row">
+      <div class="field"><label>Channel name</label><input type="text" id="newName" placeholder="e.g. Soweto TV"></div>
+      <div class="field"><label>Type</label>
+        <select id="newType"><option>HLS</option><option>MP4</option><option>RTMP</option></select>
+      </div>
+    </div>
+    <div class="field" style="margin-top:11px;">
+      <label>Stream URL</label>
+      <div class="field-row">
+        <div class="field"><input type="text" id="newUrl" placeholder="https://.../playlist.m3u8"></div>
+        <button class="btn btn-sm" id="newTestBtn">Test</button>
+      </div>
+    </div>
+    <div class="field"><label>Logo URL</label><input type="text" id="newLogo" placeholder="https://.../logo.png"></div>
+    <div class="field-row">
+      <div class="field"><label>Fallback URL</label><input type="text" id="newFallback" placeholder="optional"></div>
+      <div class="field"><label>Off-air MP4 URL</label><input type="text" id="newOffair" placeholder="optional"></div>
+    </div>
+    <div class="toggle-row">
+      <label>Enabled on add</label>
+      <div class="switch"><input type="checkbox" id="newEnabled" checked><span class="slider"></span></div>
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-primary" id="btnAddChannel">+ Add channel</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Edit modal -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h3>Edit channel</h3>
+    <div class="field"><label>Channel name</label><input type="text" id="editName"></div>
+    <div class="field-row">
+      <div class="field"><label>Type</label>
+        <select id="editType"><option>HLS</option><option>MP4</option><option>RTMP</option></select>
+      </div>
+    </div>
+    <div class="field" style="margin-top:11px;">
+      <label>Stream URL</label>
+      <div class="field-row">
+        <div class="field"><input type="text" id="editUrl"></div>
+        <button class="btn btn-sm" id="editTestBtn">Test</button>
+      </div>
+    </div>
+    <div class="field"><label>Logo URL</label><input type="text" id="editLogo"></div>
+    <div class="field-row">
+      <div class="field"><label>Fallback URL</label><input type="text" id="editFallback"></div>
+      <div class="field"><label>Off-air MP4 URL</label><input type="text" id="editOffair"></div>
+    </div>
+    <div class="toggle-row">
+      <label>Channel enabled</label>
+      <div class="switch"><input type="checkbox" id="editEnabled"><span class="slider"></span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="editDeleteBtn" style="margin-right:auto; color:#FF9B94; border-color:#4A1F1A;">Delete channel</button>
+      <button class="btn" id="editCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="editSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h3>Firebase connection</h3>
+    <div class="field"><label>API key</label><input type="text" id="cfgApiKey" placeholder="AIza..."></div>
+    <div class="field"><label>Project ID</label><input type="text" id="cfgProjectId" placeholder="sowetotv"></div>
+    <div class="field"><label>Storage bucket</label><input type="text" id="cfgBucket" placeholder="sowetotv.appspot.com"></div>
+    <div class="field"><label>App ID</label><input type="text" id="cfgAppId" placeholder="1:xxxx:web:xxxx"></div>
+    <div class="field">
+      <label>Path to streams.json inside the bucket</label>
+      <input type="text" id="cfgPath" placeholder="streams.json" value="streams.json">
+    </div>
+    <div class="field">
+      <label>Public download URL (used to load the playlist)</label>
+      <input type="text" id="cfgDownloadUrl" placeholder="https://firebasestorage.googleapis.com/...">
+      <div class="hint">Paste your existing streams.json download URL, or leave blank and click "Fetch download URL" after saving once your bucket rules allow it.</div>
+    </div>
+    <div class="toggle-row">
+      <label>Sign in anonymously before writing (needed if your Storage rules require auth)</label>
+      <div class="switch"><input type="checkbox" id="cfgUseAuth"><span class="slider"></span></div>
+    </div>
+    <div class="hint" style="margin-top:8px;">
+      Your Storage security rules must allow read/write for this to work from a browser — e.g. rules scoped to authenticated users, or public rules if you accept the risk. Nothing here is sent anywhere except directly to your own Firebase project.
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="settingsCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="settingsSaveBtn">Save connection</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const LS_CONFIG = "chctrl_firebase_config";
+  const LS_DATA = "chctrl_channels_cache";
+
+  let channels = [];
+  let firebaseApp = null;
+  let dragSrcIndex = null;
+  let editingIndex = null;
+
+  // ---------- seed data (from the uploaded streams.json, used until Firebase is linked) ----------
+  const seedChannels = [
+    {name:"Soweto TV", url:"https://cdn.freevisiontv.co.za/sttv/smil:soweto.stream.smil/chunklist_b1550000.m3u8", type:"HLS", logo:"https://yourlogourl.com/sowetotv.png", fallback_url:"https://your-backup-stream.m3u8", offair_url:"https://firebasestorage.googleapis.com/your-offair.mp4", enabled:true},
+    {name:"Channel 2", url:"https://your-second-stream.m3u8", type:"HLS", logo:"https://yourlogourl.com/channel2.png", fallback_url:"", offair_url:"", enabled:true}
+  ];
+
+  // ---------- helpers ----------
+  const $ = id => document.getElementById(id);
+
+  function showBanner(msg, kind){
+    const b = $("banner");
+    b.textContent = msg;
+    b.className = "banner show " + kind;
+    if(kind !== "err"){
+      clearTimeout(showBanner._t);
+      showBanner._t = setTimeout(()=>{ b.classList.remove("show"); }, 6000);
+    }
+  }
+
+  function loadConfig(){
+    try{
+      const raw = localStorage.getItem(LS_CONFIG);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  function saveConfig(cfg){ localStorage.setItem(LS_CONFIG, JSON.stringify(cfg)); }
+
+  function loadCachedChannels(){
+    try{
+      const raw = localStorage.getItem(LS_DATA);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  function cacheChannels(){ localStorage.setItem(LS_DATA, JSON.stringify(channels)); }
+
+  function refreshConfigStrip(){
+    const cfg = loadConfig();
+    const flag = $("linkFlag");
+    const label = $("bucketLabel");
+    if(cfg && cfg.projectId && cfg.bucket){
+      flag.textContent = "linked";
+      flag.className = "flag linked";
+      label.textContent = "bucket: " + cfg.bucket + " · path: " + (cfg.path || "streams.json");
+    }else{
+      flag.textContent = "not configured";
+      flag.className = "flag unlinked";
+      label.textContent = "";
+    }
+  }
+
+  function ensureFirebaseInit(cfg){
+    if(!cfg || !cfg.apiKey || !cfg.projectId || !cfg.bucket){
+      throw new Error("Firebase connection is not fully configured. Open the gear icon and fill in the details.");
+    }
+    if(!firebaseApp){
+      firebaseApp = firebase.initializeApp({
+        apiKey: cfg.apiKey,
+        authDomain: cfg.projectId + ".firebaseapp.com",
+        projectId: cfg.projectId,
+        storageBucket: cfg.bucket,
+        appId: cfg.appId || undefined
+      });
+    }
+    return firebaseApp;
+  }
+
+  // ---------- rendering ----------
+  function render(){
+    const grid = $("grid");
+    grid.innerHTML = "";
+    $("countPill").textContent = channels.length + (channels.length === 1 ? " channel" : " channels");
+
+    if(channels.length === 0){
+      grid.innerHTML = '<div class="empty" style="grid-column:1/-1;">No channels yet. Add one below, or restore a backup.</div>';
+      return;
+    }
+
+    channels.forEach((ch, i) => {
+      const card = document.createElement("div");
+      card.className = "card" + (ch.enabled === false ? " disabled" : "");
+      card.draggable = true;
+      card.dataset.index = i;
+
+      const typeClass = (ch.type || "HLS").toLowerCase();
+      const logoHtml = ch.logo
+        ? `<img src="${escapeAttr(ch.logo)}" onerror="this.parentElement.textContent='NO LOGO'; this.remove();">`
+        : "NO LOGO";
+
+      card.innerHTML = `
+        ${i === 0 ? '<div class="default-tag">DEFAULT</div>' : ''}
+        <div class="card-top">
+          <div class="logo-box">${logoHtml}</div>
+          <div class="card-meta">
+            <div class="ch-tag">
+              <span class="status-dot ${ch.enabled === false ? 'off' : 'on'}"></span>
+              CH ${String(i+1).padStart(2,'0')}
+              <span class="badge ${typeClass}">${escapeHtml(ch.type || 'HLS')}</span>
+            </div>
+            <p class="ch-name">${escapeHtml(ch.name || 'Untitled channel')}</p>
+            <div class="ch-url">${escapeHtml(ch.url || 'no url set')}</div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-sm" data-action="edit">Edit</button>
+          <button class="btn btn-sm" data-action="test">Test stream</button>
+          <button class="btn btn-sm" data-action="toggle">${ch.enabled === false ? 'Enable' : 'Disable'}</button>
+          <button class="btn btn-sm" data-action="delete" style="color:#FF9B94;">Delete</button>
+        </div>
+      `;
+
+      card.addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if(!btn) return;
+        const action = btn.dataset.action;
+        if(action === "edit") openEdit(i);
+        if(action === "test") window.open(ch.url, "_blank");
+        if(action === "toggle"){ ch.enabled = ch.enabled === false ? true : false; cacheChannels(); render(); }
+        if(action === "delete") deleteChannel(i);
+      });
+
+      card.addEventListener("dragstart", () => { dragSrcIndex = i; card.classList.add("dragging"); });
+      card.addEventListener("dragend", () => { card.classList.remove("dragging"); document.querySelectorAll(".drag-over").forEach(c=>c.classList.remove("drag-over")); });
+      card.addEventListener("dragover", (e) => { e.preventDefault(); card.classList.add("drag-over"); });
+      card.addEventListener("dragleave", () => card.classList.remove("drag-over"));
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        card.classList.remove("drag-over");
+        const destIndex = i;
+        if(dragSrcIndex === null || dragSrcIndex === destIndex) return;
+        const moved = channels.splice(dragSrcIndex, 1)[0];
+        channels.splice(destIndex, 0, moved);
+        dragSrcIndex = null;
+        cacheChannels();
+        render();
+      });
+
+      grid.appendChild(card);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  // ---------- add ----------
+  $("btnAddChannel").addEventListener("click", () => {
+    const name = $("newName").value.trim();
+    const url = $("newUrl").value.trim();
+    if(!name || !url){ showBanner("Channel name and stream URL are required.", "err"); return; }
+    channels.push({
+      name, url,
+      type: $("newType").value,
+      logo: $("newLogo").value.trim(),
+      fallback_url: $("newFallback").value.trim(),
+      offair_url: $("newOffair").value.trim(),
+      enabled: $("newEnabled").checked
+    });
+    ["newName","newUrl","newLogo","newFallback","newOffair"].forEach(id => $(id).value = "");
+    $("newEnabled").checked = true;
+    cacheChannels();
+    render();
+    showBanner("Channel added — remember to Save & Publish.", "info");
+  });
+  $("newTestBtn").addEventListener("click", () => {
+    const url = $("newUrl").value.trim();
+    if(url) window.open(url, "_blank"); else showBanner("Enter a stream URL first.", "err");
+  });
+
+  // ---------- edit ----------
+  function openEdit(i){
+    editingIndex = i;
+    const ch = channels[i];
+    $("editName").value = ch.name || "";
+    $("editType").value = ch.type || "HLS";
+    $("editUrl").value = ch.url || "";
+    $("editLogo").value = ch.logo || "";
+    $("editFallback").value = ch.fallback_url || "";
+    $("editOffair").value = ch.offair_url || "";
+    $("editEnabled").checked = ch.enabled !== false;
+    $("editOverlay").classList.add("show");
+  }
+  $("editCancelBtn").addEventListener("click", () => $("editOverlay").classList.remove("show"));
+  $("editTestBtn").addEventListener("click", () => {
+    const url = $("editUrl").value.trim();
+    if(url) window.open(url, "_blank"); else showBanner("Enter a stream URL first.", "err");
+  });
+  $("editSaveBtn").addEventListener("click", () => {
+    const name = $("editName").value.trim();
+    const url = $("editUrl").value.trim();
+    if(!name || !url){ showBanner("Channel name and stream URL are required.", "err"); return; }
+    channels[editingIndex] = {
+      name, url,
+      type: $("editType").value,
+      logo: $("editLogo").value.trim(),
+      fallback_url: $("editFallback").value.trim(),
+      offair_url: $("editOffair").value.trim(),
+      enabled: $("editEnabled").checked
+    };
+    cacheChannels();
+    render();
+    $("editOverlay").classList.remove("show");
+    showBanner("Channel updated — remember to Save & Publish.", "info");
+  });
+  $("editDeleteBtn").addEventListener("click", () => {
+    $("editOverlay").classList.remove("show");
+    deleteChannel(editingIndex);
+  });
+
+  function deleteChannel(i){
+    const ch = channels[i];
+    if(!confirm(`Delete "${ch.name || 'this channel'}"? This can't be undone once published.`)) return;
+    channels.splice(i, 1);
+    cacheChannels();
+    render();
+    showBanner("Channel deleted — remember to Save & Publish.", "info");
+  }
+
+  // ---------- settings ----------
+  $("btnSettings").addEventListener("click", openSettings);
+  $("editConfigLink").addEventListener("click", openSettings);
+  function openSettings(){
+    const cfg = loadConfig() || {};
+    $("cfgApiKey").value = cfg.apiKey || "";
+    $("cfgProjectId").value = cfg.projectId || "";
+    $("cfgBucket").value = cfg.bucket || "";
+    $("cfgAppId").value = cfg.appId || "";
+    $("cfgPath").value = cfg.path || "streams.json";
+    $("cfgDownloadUrl").value = cfg.downloadUrl || "";
+    $("cfgUseAuth").checked = !!cfg.useAuth;
+    $("settingsOverlay").classList.add("show");
+  }
+  $("settingsCancelBtn").addEventListener("click", () => $("settingsOverlay").classList.remove("show"));
+  $("settingsSaveBtn").addEventListener("click", () => {
+    const cfg = {
+      apiKey: $("cfgApiKey").value.trim(),
+      projectId: $("cfgProjectId").value.trim(),
+      bucket: $("cfgBucket").value.trim(),
+      appId: $("cfgAppId").value.trim(),
+      path: $("cfgPath").value.trim() || "streams.json",
+      downloadUrl: $("cfgDownloadUrl").value.trim(),
+      useAuth: $("cfgUseAuth").checked
+    };
+    saveConfig(cfg);
+    firebaseApp = null; // force re-init with new config
+    refreshConfigStrip();
+    $("settingsOverlay").classList.remove("show");
+    showBanner("Connection saved.", "ok");
+    if(cfg.downloadUrl) fetchFromFirebase(cfg.downloadUrl);
+  });
+
+  // ---------- load from Firebase ----------
+  function fetchFromFirebase(url){
+    showBanner("Loading playlist from Firebase…", "info");
+    fetch(url, {cache:"no-store"})
+      .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(data => {
+        if(!data || !Array.isArray(data.channels)) throw new Error("streams.json is missing a channels array.");
+        channels = data.channels.map(c => ({ enabled:true, ...c }));
+        cacheChannels();
+        render();
+        showBanner("Playlist loaded from Firebase.", "ok");
+      })
+      .catch(err => {
+        showBanner("Couldn't load streams.json: " + err.message, "err");
+      });
+  }
+
+  // ---------- save to Firebase ----------
+  $("btnSave").addEventListener("click", () => {
+    const cfg = loadConfig();
+    cacheChannels();
+    let app;
+    try{
+      app = ensureFirebaseInit(cfg);
+    }catch(err){
+      showBanner(err.message, "err");
+      return;
+    }
+
+    const payload = JSON.stringify({ channels }, null, 2);
+    const doWrite = () => {
+      const storageRef = app.storage().ref(cfg.path);
+      $("btnSave").disabled = true;
+      showBanner("Publishing playlist to Firebase…", "info");
+      storageRef.putString(payload, "raw", {contentType:"application/json"})
+        .then(() => storageRef.getDownloadURL())
+        .then(url => {
+          const updated = loadConfig();
+          updated.downloadUrl = url;
+          saveConfig(updated);
+          refreshConfigStrip();
+          $("cfgDownloadUrl").value = url;
+          showBanner("Playlist updated — changes live in 30 seconds.", "ok");
+        })
+        .catch(err => {
+          showBanner("Save failed: " + err.message, "err");
+        })
+        .finally(() => { $("btnSave").disabled = false; });
+    };
+
+    if(cfg.useAuth){
+      app.auth().signInAnonymously().then(doWrite).catch(err => {
+        showBanner("Auth failed: " + err.message, "err");
+      });
+    }else{
+      doWrite();
+    }
+  });
+
+  // ---------- backup / restore ----------
+  $("btnDownload").addEventListener("click", () => {
+    const payload = JSON.stringify({ channels }, null, 2);
+    const blob = new Blob([payload], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "streams-backup-" + new Date().toISOString().slice(0,10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showBanner("Backup downloaded.", "ok");
+  });
+
+  $("btnRestore").addEventListener("click", () => $("fileRestore").click());
+  $("fileRestore").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(reader.result);
+        if(!data || !Array.isArray(data.channels)) throw new Error("File doesn't contain a channels array.");
+        channels = data.channels.map(c => ({ enabled:true, ...c }));
+        cacheChannels();
+        render();
+        showBanner("Backup restored into the dashboard — Save & Publish to push it live.", "ok");
+      }catch(err){
+        showBanner("Couldn't read that file: " + err.message, "err");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+
+  // ---------- init ----------
+  function init(){
+    const cached = loadCachedChannels();
+    channels = cached || seedChannels.map(c => ({...c}));
+    refreshConfigStrip();
+    render();
+    const cfg = loadConfig();
+    if(cfg && cfg.downloadUrl){
+      fetchFromFirebase(cfg.downloadUrl);
+    }else{
+      showBanner("Working from local data. Open the gear icon to connect your Firebase project.", "info");
+    }
+  }
+  init();
+})();
+</script>
+</body>
+</html>
