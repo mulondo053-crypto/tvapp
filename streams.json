@@ -8,13 +8,5 @@
       "fallback_url": "https://your-backup-stream.m3u8",
       "offair_url": "https://firebasestorage.googleapis.com/your-offair.mp4"
     },
-    {
-      "name": "Channel 2",
-      "url": "https://your-second-stream.m3u8",
-      "type": "HLS",
-      "logo": "https://yourlogourl.com/channel2.png",
-      "fallback_url": "",
-      "offair_url": ""
-    }
-  ]
+      ]
 }
