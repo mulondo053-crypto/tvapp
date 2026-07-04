@@ -1,0 +1,166 @@
+<?php
+/**
+ * save.php — Master Control save endpoint
+ *
+ * Receives the full channel list as JSON via POST, validates it,
+ * backs up the current streams.json, then overwrites it.
+ *
+ * Response shape (always JSON):
+ *   { "success": true,  "message": "...", "backup": "streams_backup.json" }
+ *   { "success": false, "message": "..." }
+ */
+
+header('Content-Type: application/json; charset=utf-8');
+
+// Only accept POST — anything else is a client error, not a server one.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode([
+        'success' => false,
+        'message' => 'This endpoint only accepts POST requests.'
+    ]);
+    exit;
+}
+
+define('STREAMS_FILE', __DIR__ . '/streams.json');
+define('BACKUP_FILE', __DIR__ . '/streams_backup.json');
+define('MAX_BODY_BYTES', 2 * 1024 * 1024); // 2MB is generous for a channel list
+
+// Read the raw request body ourselves rather than trusting $_POST,
+// since the client sends application/json, not form-encoded data.
+$raw = file_get_contents('php://input', false, null, 0, MAX_BODY_BYTES + 1);
+
+if ($raw === false || $raw === '') {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'No data received. Nothing was saved.'
+    ]);
+    exit;
+}
+
+if (strlen($raw) > MAX_BODY_BYTES) {
+    http_response_code(413);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Payload too large. Nothing was saved.'
+    ]);
+    exit;
+}
+
+// --- Validate JSON format ---
+$decoded = json_decode($raw, true);
+
+if (json_last_error() !== JSON_ERROR_NONE) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid JSON: ' . json_last_error_msg() . '. Nothing was saved.'
+    ]);
+    exit;
+}
+
+// --- Validate shape: must be { "channels": [ {...}, {...} ] } ---
+if (!is_array($decoded) || !isset($decoded['channels']) || !is_array($decoded['channels'])) {
+    http_response_code(422);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Expected an object with a "channels" array. Nothing was saved.'
+    ]);
+    exit;
+}
+
+$requiredFields = ['name', 'url', 'type', 'logo', 'fallback_url', 'offair_url'];
+$allowedTypes   = ['HLS', 'DASH', 'MP4', 'MP3', 'RTMP', 'YouTube'];
+
+foreach ($decoded['channels'] as $index => $channel) {
+    if (!is_array($channel)) {
+        http_response_code(422);
+        echo json_encode([
+            'success' => false,
+            'message' => "Channel at position {$index} is not a valid object. Nothing was saved."
+        ]);
+        exit;
+    }
+
+    foreach ($requiredFields as $field) {
+        if (!array_key_exists($field, $channel)) {
+            http_response_code(422);
+            echo json_encode([
+                'success' => false,
+                'message' => "Channel at position {$index} is missing \"{$field}\". Nothing was saved."
+            ]);
+            exit;
+        }
+    }
+
+    if (!in_array($channel['type'], $allowedTypes, true)) {
+        http_response_code(422);
+        echo json_encode([
+            'success' => false,
+            'message' => "Channel \"{$channel['name']}\" has an unsupported type \"{$channel['type']}\". Nothing was saved."
+        ]);
+        exit;
+    }
+
+    if (trim((string) $channel['name']) === '') {
+        http_response_code(422);
+        echo json_encode([
+            'success' => false,
+            'message' => "Channel at position {$index} has an empty name. Nothing was saved."
+        ]);
+        exit;
+    }
+}
+
+// --- Back up the current file before touching it ---
+if (file_exists(STREAMS_FILE)) {
+    if (!copy(STREAMS_FILE, BACKUP_FILE)) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Could not create a backup before saving. Nothing was saved.'
+        ]);
+        exit;
+    }
+}
+
+// --- Write the new data, pretty-printed, atomically via a temp file ---
+$pretty = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+if ($pretty === false) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Could not encode the data for saving. Nothing was saved.'
+    ]);
+    exit;
+}
+
+$tmpFile = STREAMS_FILE . '.tmp';
+
+if (file_put_contents($tmpFile, $pretty) === false) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Could not write the file. Nothing was saved.'
+    ]);
+    exit;
+}
+
+if (!rename($tmpFile, STREAMS_FILE)) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Could not finalize the save. Nothing was saved.'
+    ]);
+    exit;
+}
+
+echo json_encode([
+    'success'      => true,
+    'message'      => 'Channel lineup saved.',
+    'channels'     => count($decoded['channels']),
+    'backup'       => file_exists(BACKUP_FILE) ? 'streams_backup.json' : null,
+    'saved_at'     => date('c')
+]);
