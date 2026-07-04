@@ -2,924 +2,729 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>Master Control — Stream Playlist Manager</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Control — Channel Lineup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0B0D0F;
-    --panel:#14171B;
-    --panel-2:#1B1F24;
-    --panel-3:#20252B;
-    --border:#262B31;
-    --border-soft:#1F242A;
-    --text:#E8EAED;
-    --text-muted:#8A9099;
-    --text-dim:#5A6069;
-    --tally-green:#3DDC84;
-    --tally-red:#E1443C;
-    --amber:#F2A93B;
-    --blue-hls:#4EA1FF;
-    --purple-mp4:#B084F5;
-    --orange-rtmp:#FF9A4D;
+    --bg-base:#0a0c10;
+    --bg-panel:#12151b;
+    --bg-card:#171b22;
+    --bg-input:#0d1015;
+    --border:#242a34;
+    --border-soft:#1c2129;
+    --text-primary:#e7eaee;
+    --text-muted:#8791a0;
+    --text-dim:#5c6472;
+    --tally-red:#ff3b30;
+    --tally-red-dim:#5c1b18;
+    --signal-green:#35d07f;
+    --accent-amber:#f5a623;
+    --accent-blue:#4fa8ff;
     --font-display:'Oswald',sans-serif;
     --font-body:'Inter',sans-serif;
     --font-mono:'JetBrains Mono',monospace;
-    --radius:10px;
   }
+
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
+
   body{
-    background:
-      radial-gradient(ellipse at top left, rgba(242,169,59,0.05), transparent 45%),
-      radial-gradient(ellipse at bottom right, rgba(78,161,255,0.05), transparent 50%),
-      var(--bg);
-    color:var(--text);
+    background:var(--bg-base);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(79,168,255,0.05), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(255,59,48,0.04), transparent 40%);
+    color:var(--text-primary);
     font-family:var(--font-body);
     min-height:100vh;
     -webkit-font-smoothing:antialiased;
   }
-  ::selection{background:var(--amber);color:#0B0D0F;}
 
-  a{color:inherit;}
+  a{color:var(--accent-blue);}
 
-  /* ---------- Topbar ---------- */
-  header.topbar{
-    position:sticky; top:0; z-index:40;
-    background:rgba(11,13,15,0.92);
-    backdrop-filter:blur(10px);
+  /* ---------- Top bar ---------- */
+  .masthead{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:24px;
+    padding:18px 32px;
+    background:linear-gradient(180deg, var(--bg-panel), #0f1116);
     border-bottom:1px solid var(--border);
-    padding:14px 20px;
-    display:flex; align-items:center; justify-content:space-between;
-    gap:16px; flex-wrap:wrap;
+    position:sticky;
+    top:0;
+    z-index:50;
+    flex-wrap:wrap;
   }
-  .brand{display:flex; align-items:center; gap:12px;}
+
+  .masthead-left{display:flex;align-items:center;gap:16px;}
+
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
   .brand-mark{
-    width:34px;height:34px;border-radius:6px;
-    background:linear-gradient(135deg,var(--tally-red),var(--amber));
-    display:flex;align-items:center;justify-content:center;
-    box-shadow:0 0 14px rgba(225,68,60,0.35);
+    width:12px;height:12px;border-radius:50%;
+    background:var(--tally-red);
+    box-shadow:0 0 10px 2px rgba(255,59,48,0.6);
+    animation:pulse-live 2s infinite ease-in-out;
     flex-shrink:0;
   }
-  .brand-mark svg{width:18px;height:18px;}
-  .brand h1{
+
+  .brand-text{
     font-family:var(--font-display);
-    font-size:19px; font-weight:600; letter-spacing:1.5px;
-    margin:0; text-transform:uppercase; line-height:1;
-  }
-  .brand p{margin:2px 0 0; font-size:11px; color:var(--text-dim); letter-spacing:0.5px;}
-
-  .topbar-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
-
-  button, .btn{
-    font-family:var(--font-body);
     font-weight:600;
+    letter-spacing:0.08em;
+    font-size:20px;
+    text-transform:uppercase;
+    line-height:1;
+  }
+
+  .brand-sub{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-dim);
+    letter-spacing:0.05em;
+    margin-top:2px;
+  }
+
+  .timecode{
+    font-family:var(--font-mono);
     font-size:13px;
-    border-radius:8px;
-    border:1px solid var(--border);
-    background:var(--panel-2);
-    color:var(--text);
-    padding:9px 14px;
-    cursor:pointer;
-    display:inline-flex; align-items:center; gap:7px;
-    transition:all .15s ease;
+    color:var(--text-muted);
+    background:var(--bg-input);
+    border:1px solid var(--border-soft);
+    padding:6px 12px;
+    border-radius:4px;
+    letter-spacing:0.05em;
     white-space:nowrap;
   }
-  button:hover{background:var(--panel-3); border-color:#333a42;}
-  button:active{transform:translateY(1px);}
-  button.primary{
-    background:linear-gradient(135deg,#2d8f5a,var(--tally-green));
-    border-color:transparent; color:#04150B;
-    box-shadow:0 2px 12px rgba(61,220,132,0.25);
-  }
-  button.primary:hover{filter:brightness(1.08);}
-  button.primary.dirty{
-    background:linear-gradient(135deg,#c47a1f,var(--amber));
-    box-shadow:0 2px 14px rgba(242,169,59,0.35);
-    animation:pulseDirty 1.8s ease-in-out infinite;
-  }
-  @keyframes pulseDirty{0%,100%{box-shadow:0 2px 14px rgba(242,169,59,0.35);}50%{box-shadow:0 2px 22px rgba(242,169,59,0.6);}}
-  button.danger{color:var(--tally-red); border-color:rgba(225,68,60,0.3);}
-  button.danger:hover{background:rgba(225,68,60,0.1);}
-  button.ghost{background:transparent;}
-  button.icon-only{padding:9px; width:36px; height:36px; justify-content:center;}
-  button:disabled{opacity:0.4; cursor:not-allowed;}
-  input[type=file]{display:none;}
 
-  /* ---------- Banner / toast ---------- */
-  #bannerWrap{
-    position:fixed; top:78px; left:50%; transform:translateX(-50%);
-    z-index:100; display:flex; flex-direction:column; gap:8px;
-    width:min(92vw,480px);
-  }
-  .banner{
-    font-size:13px; font-weight:500;
-    padding:12px 14px; border-radius:8px;
-    display:flex; align-items:center; gap:10px;
-    border:1px solid; box-shadow:0 8px 24px rgba(0,0,0,0.4);
-    animation:slideIn .25s ease;
-  }
-  @keyframes slideIn{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:translateY(0);}}
-  .banner.success{background:rgba(61,220,132,0.12); border-color:rgba(61,220,132,0.4); color:var(--tally-green);}
-  .banner.error{background:rgba(225,68,60,0.12); border-color:rgba(225,68,60,0.4); color:#ff8079;}
-  .banner.info{background:rgba(78,161,255,0.12); border-color:rgba(78,161,255,0.4); color:var(--blue-hls);}
-  .banner .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;box-shadow:0 0 8px currentColor;}
-  .banner span.msg{flex:1;}
-  .banner .close{cursor:pointer; opacity:0.6; font-size:15px; line-height:1;}
-  .banner .close:hover{opacity:1;}
+  .timecode strong{color:var(--text-primary);font-weight:500;}
 
-  /* ---------- Main layout ---------- */
-  main{max-width:1180px; margin:0 auto; padding:28px 20px 80px;}
-
-  .toolbar-row{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:12px; margin-bottom:20px; flex-wrap:wrap;
-  }
-  .toolbar-row .count{
-    font-family:var(--font-mono); font-size:12px; color:var(--text-dim);
-    letter-spacing:0.5px;
+  .masthead-right{
+    display:flex;
+    align-items:center;
+    gap:14px;
   }
 
-  /* ---------- Grid & Cards ---------- */
-  #channelGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
-    gap:16px;
+  .dirty-readout{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:0.03em;
   }
 
-  .card{
-    position:relative;
-    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  .dirty-readout.has-changes{color:var(--accent-amber);}
+
+  .dirty-dot{
+    display:inline-block;
+    width:6px;height:6px;
+    border-radius:50%;
+    background:var(--text-dim);
+    margin-right:6px;
+  }
+
+  .dirty-readout.has-changes .dirty-dot{
+    background:var(--accent-amber);
+    box-shadow:0 0 6px 1px rgba(245,166,35,0.7);
+  }
+
+  .btn{
+    font-family:var(--font-display);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    font-size:13px;
+    font-weight:500;
     border:1px solid var(--border);
-    border-radius:var(--radius);
-    padding:16px;
-    cursor:grab;
-    transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    background:var(--bg-card);
+    color:var(--text-primary);
+    padding:10px 18px;
+    border-radius:4px;
+    cursor:pointer;
+    transition:all 0.15s ease;
+  }
+
+  .btn:hover{border-color:var(--accent-blue);color:var(--accent-blue);}
+  .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+  .btn-primary{
+    background:var(--signal-green);
+    border-color:var(--signal-green);
+    color:#08150f;
+  }
+  .btn-primary:hover{background:#3fe28e;border-color:#3fe28e;color:#08150f;}
+
+  .btn-small{
+    padding:7px 12px;
+    font-size:11px;
+  }
+
+  /* ---------- Layout ---------- */
+  .wrap{
+    max-width:1280px;
+    margin:0 auto;
+    padding:28px 32px 80px;
+  }
+
+  .section-label{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    margin:0 0 16px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .section-label::after{
+    content:'';
+    flex:1;
+    height:1px;
+    background:var(--border-soft);
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));
+    gap:20px;
+  }
+
+  /* ---------- Channel card ---------- */
+  .card{
+    background:var(--bg-card);
+    border:1px solid var(--border);
+    border-radius:8px;
     overflow:hidden;
-  }
-  .card::before{
-    /* scanline texture */
-    content:"";
-    position:absolute; inset:0;
-    background:repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
-    pointer-events:none;
-  }
-  .card:hover{border-color:#3a4249; box-shadow:0 6px 20px rgba(0,0,0,0.35);}
-  .card.dragging{opacity:0.35;}
-  .card.drag-over{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber);}
-  .card.disabled{opacity:0.55;}
-
-  .default-flag{
-    position:absolute; top:0; right:0;
-    background:var(--amber); color:#231600;
-    font-family:var(--font-mono); font-size:9.5px; font-weight:700;
-    letter-spacing:1px; padding:4px 10px 4px 14px;
-    border-bottom-left-radius:8px;
-    clip-path:polygon(14px 0,100% 0,100% 100%,0 100%);
+    transition:border-color 0.2s ease;
+    display:flex;
+    flex-direction:column;
   }
 
-  .card-top{display:flex; gap:12px; align-items:flex-start;}
-  .logo-box{
-    width:52px;height:52px;border-radius:8px;
-    background:var(--panel-3); border:1px solid var(--border-soft);
-    display:flex;align-items:center;justify-content:center;
-    flex-shrink:0; overflow:hidden;
-  }
-  .logo-box img{width:100%;height:100%;object-fit:cover;}
-  .logo-box .fallback-icon{color:var(--text-dim);}
+  .card.is-dirty{border-color:var(--accent-amber);}
 
-  .card-title-wrap{flex:1; min-width:0;}
-  .card-title-row{display:flex; align-items:center; gap:8px;}
-  .tally{
-    width:9px;height:9px;border-radius:50%;flex-shrink:0;
-    background:var(--tally-red);
-    box-shadow:0 0 6px var(--tally-red);
+  .card-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    padding:16px 18px 14px;
+    border-bottom:1px solid var(--border-soft);
+    gap:12px;
   }
-  .tally.on{background:var(--tally-green); box-shadow:0 0 7px var(--tally-green);}
-  .card-title{
-    font-family:var(--font-display); font-size:16px; font-weight:600;
-    letter-spacing:0.3px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .badge{
-    font-family:var(--font-mono); font-size:9.5px; font-weight:700;
-    letter-spacing:0.8px; padding:2px 7px; border-radius:4px;
-    display:inline-block; margin-top:5px; text-transform:uppercase;
-  }
-  .badge.HLS{background:rgba(78,161,255,0.15); color:var(--blue-hls); border:1px solid rgba(78,161,255,0.3);}
-  .badge.MP4{background:rgba(176,132,245,0.15); color:var(--purple-mp4); border:1px solid rgba(176,132,245,0.3);}
-  .badge.RTMP{background:rgba(255,154,77,0.15); color:var(--orange-rtmp); border:1px solid rgba(255,154,77,0.3);}
 
-  .card-url{
-    font-family:var(--font-mono); font-size:11px; color:var(--text-muted);
-    margin:12px 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    background:rgba(0,0,0,0.25); padding:7px 9px; border-radius:6px;
+  .card-head-left{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-width:0;
+  }
+
+  .logo-frame{
+    width:48px;height:48px;
+    border-radius:6px;
     border:1px solid var(--border-soft);
+    background:var(--bg-input);
+    flex-shrink:0;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
   }
 
-  .card-actions{
-    display:flex; align-items:center; justify-content:space-between;
-    margin-top:14px; gap:8px;
-  }
-  .card-actions .left{display:flex; gap:6px;}
-  .switch{
-    position:relative; width:36px; height:20px; border-radius:20px;
-    background:var(--panel-3); border:1px solid var(--border); cursor:pointer;
-    flex-shrink:0; transition:background .15s ease;
-  }
-  .switch.on{background:rgba(61,220,132,0.35); border-color:var(--tally-green);}
-  .switch .knob{
-    position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%;
-    background:var(--text-dim); transition:transform .15s ease, background .15s ease;
-  }
-  .switch.on .knob{transform:translateX(16px); background:var(--tally-green);}
+  .logo-frame img{width:100%;height:100%;object-fit:cover;display:block;}
 
-  .drag-handle{color:var(--text-dim); font-size:14px; cursor:grab; padding:4px;}
-
-  .empty-state{
-    text-align:center; padding:70px 20px; color:var(--text-dim);
-    border:1px dashed var(--border); border-radius:var(--radius);
-  }
-  .empty-state h3{font-family:var(--font-display); color:var(--text-muted); letter-spacing:0.5px; margin:0 0 6px;}
-  .empty-state p{font-size:13px; margin:0 0 18px;}
-
-  /* ---------- Modal ---------- */
-  .overlay{
-    position:fixed; inset:0; background:rgba(6,7,8,0.72);
-    backdrop-filter:blur(3px);
-    display:none; align-items:flex-start; justify-content:center;
-    z-index:200; padding:5vh 16px; overflow-y:auto;
-  }
-  .overlay.show{display:flex;}
-  .modal{
-    background:var(--panel-2); border:1px solid var(--border);
-    border-radius:12px; width:100%; max-width:560px;
-    box-shadow:0 24px 60px rgba(0,0,0,0.55);
-    animation:modalIn .2s ease;
-  }
-  @keyframes modalIn{from{opacity:0; transform:translateY(10px) scale(0.98);} to{opacity:1; transform:translateY(0) scale(1);}}
-  .modal-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:18px 20px; border-bottom:1px solid var(--border);
-  }
-  .modal-head h2{
-    font-family:var(--font-display); font-size:17px; letter-spacing:0.5px;
-    margin:0; text-transform:uppercase;
-  }
-  .modal-body{padding:20px;}
-  .modal-foot{
-    padding:16px 20px; border-top:1px solid var(--border);
-    display:flex; justify-content:flex-end; gap:8px;
+  .channel-name{
+    font-family:var(--font-display);
+    font-size:17px;
+    font-weight:500;
+    letter-spacing:0.02em;
+    line-height:1.2;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
 
-  .field{margin-bottom:16px;}
+  .channel-meta{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-top:4px;
+  }
+
+  .tally{
+    width:7px;height:7px;
+    border-radius:50%;
+    background:var(--tally-red-dim);
+    flex-shrink:0;
+  }
+
+  .tally.on{
+    background:var(--tally-red);
+    box-shadow:0 0 6px 1px rgba(255,59,48,0.7);
+    animation:pulse-live 1.8s infinite ease-in-out;
+  }
+
+  .channel-status{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--text-dim);
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+  }
+
+  .channel-num{
+    font-family:var(--font-display);
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:0.08em;
+    border:1px solid var(--border-soft);
+    padding:3px 8px;
+    border-radius:20px;
+    flex-shrink:0;
+  }
+
+  .vu{
+    display:flex;
+    gap:2px;
+    height:3px;
+    margin:0 18px;
+  }
+
+  .vu span{
+    flex:1;
+    background:var(--border-soft);
+    border-radius:1px;
+  }
+
+  .card-body{
+    padding:16px 18px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    flex:1;
+  }
+
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+
   .field label{
-    display:block; font-size:11.5px; font-weight:600; color:var(--text-muted);
-    letter-spacing:0.6px; text-transform:uppercase; margin-bottom:6px;
-  }
-  .field .hint{font-size:11px; color:var(--text-dim); margin-top:5px; font-weight:400; text-transform:none; letter-spacing:0;}
-  .field input[type=text], .field input[type=url], .field select{
-    width:100%; background:var(--panel); border:1px solid var(--border);
-    border-radius:7px; padding:10px 11px; color:var(--text);
-    font-family:var(--font-mono); font-size:13px;
-  }
-  .field select{font-family:var(--font-body); font-weight:500;}
-  .field input:focus, .field select:focus{outline:none; border-color:var(--amber); box-shadow:0 0 0 3px rgba(242,169,59,0.15);}
-  .url-row{display:flex; gap:8px;}
-  .url-row input{flex:1;}
-  .field-row-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
-  .toggle-field{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
-  .toggle-field label{margin:0;}
-
-  /* ---------- Settings form specifics ---------- */
-  .settings-section{margin-bottom:22px;}
-  .settings-section h3{
-    font-family:var(--font-display); font-size:13px; letter-spacing:1px;
-    color:var(--amber); text-transform:uppercase; margin:0 0 12px;
-    padding-bottom:8px; border-bottom:1px solid var(--border-soft);
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--text-dim);
+    letter-spacing:0.1em;
+    text-transform:uppercase;
   }
 
-  footer{
-    text-align:center; color:var(--text-dim); font-size:11.5px;
-    padding:26px 20px; font-family:var(--font-mono);
+  .field input,
+  .field select{
+    background:var(--bg-input);
+    border:1px solid var(--border-soft);
+    color:var(--text-primary);
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    padding:9px 10px;
+    border-radius:4px;
+    width:100%;
+    outline:none;
+    transition:border-color 0.15s ease;
+  }
+
+  .field input:focus,
+  .field select:focus{
+    border-color:var(--accent-blue);
+  }
+
+  .field select{
+    appearance:none;
+    background-image:linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+    background-position:calc(100% - 16px) center, calc(100% - 11px) center;
+    background-size:5px 5px, 5px 5px;
+    background-repeat:no-repeat;
+    cursor:pointer;
+  }
+
+  .card-foot{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:12px 18px;
+    border-top:1px solid var(--border-soft);
+    background:rgba(255,255,255,0.012);
+  }
+
+  .row-status{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-dim);
+  }
+
+  .row-status.saved{color:var(--signal-green);}
+  .row-status.pending{color:var(--accent-amber);}
+
+  /* ---------- Toasts ---------- */
+  .toast-stack{
+    position:fixed;
+    bottom:24px;
+    right:24px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    z-index:100;
+  }
+
+  .toast{
+    font-family:var(--font-body);
+    font-size:13.5px;
+    padding:13px 16px;
+    border-radius:6px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-left:3px solid var(--signal-green);
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    min-width:260px;
+    max-width:360px;
+    animation:toast-in 0.25s ease;
+  }
+
+  .toast.error{border-left-color:var(--tally-red);}
+  .toast strong{display:block;font-family:var(--font-display);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:3px;}
+  .toast.error strong{color:var(--tally-red);}
+  .toast:not(.error) strong{color:var(--signal-green);}
+
+  /* ---------- Empty / loading ---------- */
+  .empty-state{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--text-muted);
+    font-family:var(--font-mono);
+    font-size:13px;
+  }
+
+  /* ---------- Animations ---------- */
+  @keyframes pulse-live{
+    0%,100%{opacity:1;}
+    50%{opacity:0.35;}
+  }
+
+  @keyframes toast-in{
+    from{opacity:0;transform:translateY(8px);}
+    to{opacity:1;transform:translateY(0);}
   }
 
   @media (max-width:640px){
-    .field-row-2{grid-template-columns:1fr;}
-    header.topbar{padding:12px 14px;}
-    .brand h1{font-size:16px;}
-    main{padding:20px 14px 70px;}
-    .topbar-actions button span.label{display:none;}
+    .masthead{padding:14px 18px;}
+    .wrap{padding:20px 16px 60px;}
+    .brand-text{font-size:16px;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important;}
   }
 </style>
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">
-    <div class="brand-mark">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#0B0D0F" stroke-width="2.4"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M8 3l4 3 4-3"/></svg>
-    </div>
-    <div>
-      <h1>Master Control</h1>
-      <p>streams.json playlist manager</p>
-    </div>
-  </div>
-  <div class="topbar-actions">
-    <button id="btnSettings" class="ghost icon-only" title="Settings">⚙</button>
-    <button id="btnRestore" class="ghost"><span>⭱</span><span class="label">Restore</span></button>
-    <input type="file" id="restoreInput" accept="application/json">
-    <button id="btnBackup" class="ghost"><span>⬇</span><span class="label">Download Backup</span></button>
-    <button id="btnSave" class="primary"><span>📡</span><span class="label">Save &amp; Publish</span></button>
-  </div>
-</header>
-
-<div id="bannerWrap"></div>
-
-<main>
-  <div class="toolbar-row">
-    <button id="btnAdd" class="primary" style="background:linear-gradient(135deg,#3a4249,#20252B); color:var(--text); box-shadow:none; border:1px solid var(--border);">+ Add Channel</button>
-    <div class="count" id="channelCount">0 CHANNELS LOADED</div>
-  </div>
-
-  <div id="channelGrid"></div>
-  <div class="empty-state" id="emptyState" style="display:none;">
-    <h3>No channels loaded</h3>
-    <p>Add a channel manually, restore a backup, or set a source URL in Settings.</p>
-    <button id="btnEmptyAdd" class="primary" style="background:linear-gradient(135deg,#2d8f5a,var(--tally-green)); color:#04150B;">+ Add your first channel</button>
-  </div>
-
-  <footer>MASTER CONTROL · first card in the list is the app's startup default · drag cards to reorder</footer>
-</main>
-
-<!-- Channel Add/Edit Modal -->
-<div class="overlay" id="channelOverlay">
-  <div class="modal">
-    <div class="modal-head">
-      <h2 id="channelModalTitle">Add Channel</h2>
-      <button class="ghost icon-only" id="closeChannelModal">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="field">
-        <label>Channel Name</label>
-        <input type="text" id="fName" placeholder="e.g. Soweto TV">
-      </div>
-      <div class="field">
-        <label>Stream URL</label>
-        <div class="url-row">
-          <input type="url" id="fUrl" placeholder="https://.../playlist.m3u8">
-          <button id="btnTestStream" type="button">Test Stream</button>
+  <header class="masthead">
+    <div class="masthead-left">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <div class="brand-text">Master Control</div>
+          <div class="brand-sub">CHANNEL LINEUP · streams.json</div>
         </div>
       </div>
-      <div class="field-row-2">
+    </div>
+    <div class="masthead-right">
+      <div class="timecode" id="timecode">--:--:--</div>
+      <div class="dirty-readout" id="dirtyReadout"><span class="dirty-dot"></span>No unsaved changes</div>
+      <button class="btn" id="reloadBtn" type="button">Reload</button>
+      <button class="btn btn-primary" id="saveAllBtn" type="button">Save All</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <p class="section-label" id="gridLabel">Loading lineup…</p>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+  <template id="cardTemplate">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="logo-frame"><img alt=""></div>
+          <div>
+            <div class="channel-name"></div>
+            <div class="channel-meta">
+              <span class="tally on"></span>
+              <span class="channel-status">On Air</span>
+            </div>
+          </div>
+        </div>
+        <div class="channel-num"></div>
+      </div>
+      <div class="vu">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label for="">Stream URL</label>
+          <input type="text" data-field="url" spellcheck="false">
+        </div>
         <div class="field">
           <label>Type</label>
-          <select id="fType">
+          <select data-field="type">
             <option value="HLS">HLS</option>
+            <option value="DASH">DASH</option>
             <option value="MP4">MP4</option>
+            <option value="MP3">MP3</option>
             <option value="RTMP">RTMP</option>
+            <option value="YouTube">YouTube</option>
           </select>
         </div>
         <div class="field">
-          <label>Logo URL</label>
-          <input type="url" id="fLogo" placeholder="https://.../logo.png">
-        </div>
-      </div>
-      <div class="field">
-        <label>Fallback URL</label>
-        <input type="url" id="fFallback" placeholder="Optional backup stream">
-      </div>
-      <div class="field">
-        <label>Off-air MP4 URL</label>
-        <input type="url" id="fOffair" placeholder="Optional — plays when channel is off air">
-      </div>
-      <div class="toggle-field">
-        <div class="switch" id="fEnabledSwitch"><div class="knob"></div></div>
-        <label style="text-transform:none; font-weight:500; color:var(--text);">Channel enabled</label>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="ghost" id="cancelChannel">Cancel</button>
-      <button class="primary" id="saveChannel" style="background:linear-gradient(135deg,#2d8f5a,var(--tally-green)); color:#04150B;">Save Channel</button>
-    </div>
-  </div>
-</div>
-
-<!-- Settings Modal -->
-<div class="overlay" id="settingsOverlay">
-  <div class="modal">
-    <div class="modal-head">
-      <h2>Settings</h2>
-      <button class="ghost icon-only" id="closeSettingsModal">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="settings-section">
-        <h3>Load Source</h3>
-        <div class="field">
-          <label>Public streams.json URL</label>
-          <input type="url" id="sSourceUrl" placeholder="https://your-host.com/streams.json">
-          <div class="hint">Must be publicly reachable and allow cross-origin requests (CORS). Used to load the live playlist into this dashboard.</div>
-        </div>
-        <button id="btnReloadSource" type="button">Reload from Source</button>
-      </div>
-      <div class="settings-section">
-        <h3>Firebase Publish Target</h3>
-        <div class="field">
-          <div class="hint" style="margin-bottom:10px;">Browsers can't write directly to an arbitrary web server. Save &amp; Publish uploads streams.json to Firebase Storage at the path below, overwriting the file your app reads from. Leave blank to disable auto-publish (you'll fall back to manual download).</div>
-        </div>
-        <div class="field-row-2">
-          <div class="field"><label>API Key</label><input type="text" id="sApiKey"></div>
-          <div class="field"><label>Project ID</label><input type="text" id="sProjectId"></div>
-        </div>
-        <div class="field-row-2">
-          <div class="field"><label>Storage Bucket</label><input type="text" id="sStorageBucket" placeholder="your-app.appspot.com"></div>
-          <div class="field"><label>App ID</label><input type="text" id="sAppId"></div>
+          <label>Fallback URL</label>
+          <input type="text" data-field="fallback_url" spellcheck="false">
         </div>
         <div class="field">
-          <label>Storage Path</label>
-          <input type="text" id="sStoragePath" placeholder="streams.json">
+          <label>Off-Air URL</label>
+          <input type="text" data-field="offair_url" spellcheck="false">
         </div>
       </div>
+      <div class="card-foot">
+        <span class="row-status">Untouched</span>
+        <button class="btn btn-small" data-action="save-one" type="button">Save Channel</button>
+      </div>
     </div>
-    <div class="modal-foot">
-      <button class="ghost" id="cancelSettings">Cancel</button>
-      <button class="primary" id="saveSettings" style="background:linear-gradient(135deg,#2d8f5a,var(--tally-green)); color:#04150B;">Save Settings</button>
-    </div>
-  </div>
-</div>
+  </template>
 
 <script>
 (function(){
-  "use strict";
+  'use strict';
 
-  /* ============ Seed / Demo data (used only if no source configured / fetch fails) ============ */
-  const SEED = {
-    channels: [
-      { name:"Soweto TV", url:"https://cdn.freevisiontv.co.za/sttv/smil:soweto.stream.smil/chunklist_b1550000.m3u8", type:"HLS", logo:"https://yourlogourl.com/sowetotv.png", fallback_url:"https://your-backup-stream.m3u8", offair_url:"https://firebasestorage.googleapis.com/your-offair.mp4", enabled:true },
-      { name:"Channel 2", url:"https://your-second-stream.m3u8", type:"HLS", logo:"https://yourlogourl.com/channel2.png", fallback_url:"", offair_url:"", enabled:true }
-    ]
-  };
+  const grid = document.getElementById('grid');
+  const gridLabel = document.getElementById('gridLabel');
+  const cardTemplate = document.getElementById('cardTemplate');
+  const toastStack = document.getElementById('toastStack');
+  const dirtyReadout = document.getElementById('dirtyReadout');
+  const saveAllBtn = document.getElementById('saveAllBtn');
+  const reloadBtn = document.getElementById('reloadBtn');
+  const timecodeEl = document.getElementById('timecode');
 
-  const STORAGE_KEY = "masterControl_config_v1";
-  let channels = [];
-  let editingIndex = null; // null = add mode
-  let dirty = false;
-  let dragSrcIndex = null;
-  let usingSeed = false;
+  let channels = [];       // in-memory working copy
+  let dirtyCount = 0;
 
-  /* ============ DOM refs ============ */
-  const grid = document.getElementById("channelGrid");
-  const emptyState = document.getElementById("emptyState");
-  const channelCount = document.getElementById("channelCount");
-  const bannerWrap = document.getElementById("bannerWrap");
+  // ---------- Broadcast clock ----------
+  function tickClock(){
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    timecodeEl.innerHTML = `<strong>${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}</strong>`;
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
 
-  const channelOverlay = document.getElementById("channelOverlay");
-  const settingsOverlay = document.getElementById("settingsOverlay");
-
-  const fName = document.getElementById("fName");
-  const fUrl = document.getElementById("fUrl");
-  const fType = document.getElementById("fType");
-  const fLogo = document.getElementById("fLogo");
-  const fFallback = document.getElementById("fFallback");
-  const fOffair = document.getElementById("fOffair");
-  const fEnabledSwitch = document.getElementById("fEnabledSwitch");
-
-  const sSourceUrl = document.getElementById("sSourceUrl");
-  const sApiKey = document.getElementById("sApiKey");
-  const sProjectId = document.getElementById("sProjectId");
-  const sStorageBucket = document.getElementById("sStorageBucket");
-  const sAppId = document.getElementById("sAppId");
-  const sStoragePath = document.getElementById("sStoragePath");
-
-  /* ============ Utilities ============ */
-  function uid(){ return 'c_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
-
-  function normalize(list){
-    return (list || []).map(ch => ({
-      id: ch.id || uid(),
-      name: ch.name || "Untitled Channel",
-      url: ch.url || "",
-      type: ["HLS","MP4","RTMP"].includes(ch.type) ? ch.type : "HLS",
-      logo: ch.logo || "",
-      fallback_url: ch.fallback_url || "",
-      offair_url: ch.offair_url || "",
-      enabled: ch.enabled !== false
-    }));
+  // ---------- Toasts ----------
+  function toast(title, message, isError){
+    const el = document.createElement('div');
+    el.className = 'toast' + (isError ? ' error' : '');
+    el.innerHTML = `<strong>${title}</strong>${message}`;
+    toastStack.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.3s ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 300);
+    }, 4200);
   }
 
-  function showBanner(type, message, timeout){
-    const el = document.createElement("div");
-    el.className = "banner " + type;
-    el.innerHTML = '<span class="dot"></span><span class="msg"></span><span class="close">✕</span>';
-    el.querySelector(".msg").textContent = message;
-    el.querySelector(".close").addEventListener("click", () => el.remove());
-    bannerWrap.appendChild(el);
-    if (timeout !== 0){
-      setTimeout(() => el.remove(), timeout || 5000);
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : str;
+    return div.innerHTML;
+  }
+
+  // ---------- Dirty tracking ----------
+  function setDirty(count){
+    dirtyCount = count;
+    if (dirtyCount > 0){
+      dirtyReadout.classList.add('has-changes');
+      dirtyReadout.innerHTML = `<span class="dirty-dot"></span>${dirtyCount} unsaved change${dirtyCount === 1 ? '' : 's'}`;
+    } else {
+      dirtyReadout.classList.remove('has-changes');
+      dirtyReadout.innerHTML = `<span class="dirty-dot"></span>No unsaved changes`;
     }
   }
 
-  function markDirty(){
-    dirty = true;
-    document.getElementById("btnSave").classList.add("dirty");
-  }
-  function clearDirty(){
-    dirty = false;
-    document.getElementById("btnSave").classList.remove("dirty");
+  function recalcDirty(){
+    const count = document.querySelectorAll('.card.is-dirty').length;
+    setDirty(count);
   }
 
-  function loadConfig(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    }catch(e){ return {}; }
-  }
-  function saveConfig(cfg){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
-  }
+  // ---------- Rendering ----------
+  function renderChannels(list){
+    grid.innerHTML = '';
 
-  /* ============ Rendering ============ */
-  function iconSvg(){
-    return '<svg class="fallback-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M8 3l4 3 4-3"/></svg>';
-  }
+    if (!list.length){
+      grid.innerHTML = '<div class="empty-state">No channels in the lineup yet. Add entries to streams.json to bring them on air.</div>';
+      gridLabel.textContent = 'Lineup empty';
+      return;
+    }
 
-  function render(){
-    grid.innerHTML = "";
-    channelCount.textContent = channels.length + (channels.length === 1 ? " CHANNEL LOADED" : " CHANNELS LOADED") + (usingSeed ? " · DEMO DATA" : "");
-    emptyState.style.display = channels.length ? "none" : "block";
+    gridLabel.textContent = `${list.length} channel${list.length === 1 ? '' : 's'} in rotation`;
 
-    channels.forEach((ch, index) => {
-      const card = document.createElement("div");
-      card.className = "card" + (ch.enabled ? "" : " disabled");
-      card.draggable = true;
+    list.forEach((channel, index) => {
+      const node = cardTemplate.content.firstElementChild.cloneNode(true);
+      const card = node;
       card.dataset.index = index;
 
-      if (index === 0){
-        const flag = document.createElement("div");
-        flag.className = "default-flag";
-        flag.textContent = "STARTUP DEFAULT";
-        card.appendChild(flag);
-      }
+      card.querySelector('.channel-name').textContent = channel.name || 'Untitled Channel';
+      card.querySelector('.channel-num').textContent = 'CH ' + String(index + 1).padStart(2, '0');
 
-      const top = document.createElement("div");
-      top.className = "card-top";
-
-      const logoBox = document.createElement("div");
-      logoBox.className = "logo-box";
-      if (ch.logo){
-        const img = document.createElement("img");
-        img.src = ch.logo;
-        img.alt = ch.name;
-        img.onerror = () => { logoBox.innerHTML = iconSvg(); };
-        logoBox.appendChild(img);
+      const img = card.querySelector('.logo-frame img');
+      if (channel.logo){
+        img.src = channel.logo;
+        img.alt = channel.name || '';
+        img.onerror = () => { img.style.display = 'none'; };
       } else {
-        logoBox.innerHTML = iconSvg();
+        img.style.display = 'none';
       }
 
-      const titleWrap = document.createElement("div");
-      titleWrap.className = "card-title-wrap";
-      titleWrap.innerHTML = `
-        <div class="card-title-row">
-          <div class="tally ${ch.enabled ? 'on' : ''}"></div>
-          <h3 class="card-title"></h3>
-        </div>
-        <span class="badge ${ch.type}"></span>
-      `;
-      titleWrap.querySelector(".card-title").textContent = ch.name;
-      titleWrap.querySelector(".badge").textContent = ch.type;
+      card.querySelector('[data-field="url"]').value = channel.url || '';
+      card.querySelector('[data-field="type"]').value = channel.type || 'HLS';
+      card.querySelector('[data-field="fallback_url"]').value = channel.fallback_url || '';
+      card.querySelector('[data-field="offair_url"]').value = channel.offair_url || '';
 
-      top.appendChild(logoBox);
-      top.appendChild(titleWrap);
-      card.appendChild(top);
+      // Track edits per-field
+      card.querySelectorAll('[data-field]').forEach(input => {
+        input.addEventListener('input', () => {
+          const field = input.dataset.field;
+          channels[index][field] = input.value;
+          markDirty(card);
+        });
+        input.addEventListener('change', () => {
+          const field = input.dataset.field;
+          channels[index][field] = input.value;
+          markDirty(card);
+        });
+      });
 
-      const urlLine = document.createElement("div");
-      urlLine.className = "card-url";
-      urlLine.textContent = ch.url || "(no url set)";
-      card.appendChild(urlLine);
-
-      const actions = document.createElement("div");
-      actions.className = "card-actions";
-      actions.innerHTML = `
-        <div class="left">
-          <button class="ghost icon-only" data-act="edit" title="Edit">✎</button>
-          <button class="ghost icon-only" data-act="test" title="Test stream">▶</button>
-          <button class="ghost icon-only danger" data-act="delete" title="Delete">🗑</button>
-        </div>
-      `;
-      const switchEl = document.createElement("div");
-      switchEl.className = "switch" + (ch.enabled ? " on" : "");
-      switchEl.innerHTML = '<div class="knob"></div>';
-      switchEl.title = "Enable / disable";
-      actions.appendChild(switchEl);
-      card.appendChild(actions);
-
-      // interactions
-      switchEl.addEventListener("click", (e) => {
-        e.stopPropagation();
-        channels[index].enabled = !channels[index].enabled;
-        markDirty();
-        render();
-      });
-      actions.querySelector('[data-act="edit"]').addEventListener("click", (e) => {
-        e.stopPropagation();
-        openChannelModal("edit", index);
-      });
-      actions.querySelector('[data-act="test"]').addEventListener("click", (e) => {
-        e.stopPropagation();
-        testStream(ch.url);
-      });
-      actions.querySelector('[data-act="delete"]').addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteChannel(index);
-      });
-      card.addEventListener("click", () => openChannelModal("edit", index));
-
-      // drag reorder
-      card.addEventListener("dragstart", () => {
-        dragSrcIndex = index;
-        card.classList.add("dragging");
-      });
-      card.addEventListener("dragend", () => {
-        card.classList.remove("dragging");
-        document.querySelectorAll(".card").forEach(c => c.classList.remove("drag-over"));
-      });
-      card.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        card.classList.add("drag-over");
-      });
-      card.addEventListener("dragleave", () => card.classList.remove("drag-over"));
-      card.addEventListener("drop", (e) => {
-        e.preventDefault();
-        card.classList.remove("drag-over");
-        const destIndex = index;
-        if (dragSrcIndex === null || dragSrcIndex === destIndex) return;
-        const [moved] = channels.splice(dragSrcIndex, 1);
-        channels.splice(destIndex, 0, moved);
-        dragSrcIndex = null;
-        markDirty();
-        render();
+      card.querySelector('[data-action="save-one"]').addEventListener('click', () => {
+        saveChannels(`Saved "${channel.name}".`, card);
       });
 
       grid.appendChild(card);
     });
   }
 
-  function testStream(url){
-    if (!url || !url.trim()){
-      showBanner("error", "No stream URL to test.", 3500);
-      return;
+  function markDirty(card){
+    if (!card.classList.contains('is-dirty')){
+      card.classList.add('is-dirty');
+      const status = card.querySelector('.row-status');
+      status.textContent = 'Pending save';
+      status.className = 'row-status pending';
     }
-    window.open(url.trim(), "_blank", "noopener");
+    recalcDirty();
   }
 
-  /* ============ Add / Edit modal ============ */
-  function openChannelModal(mode, index){
-    editingIndex = mode === "edit" ? index : null;
-    document.getElementById("channelModalTitle").textContent = mode === "edit" ? "Edit Channel" : "Add Channel";
-    const ch = mode === "edit" ? channels[index] : { name:"", url:"", type:"HLS", logo:"", fallback_url:"", offair_url:"", enabled:true };
-    fName.value = ch.name;
-    fUrl.value = ch.url;
-    fType.value = ch.type;
-    fLogo.value = ch.logo;
-    fFallback.value = ch.fallback_url;
-    fOffair.value = ch.offair_url;
-    setSwitch(fEnabledSwitch, ch.enabled);
-    channelOverlay.classList.add("show");
-    fName.focus();
-  }
-  function closeChannelModalFn(){
-    channelOverlay.classList.remove("show");
-    editingIndex = null;
-  }
-  function setSwitch(el, on){
-    el.classList.toggle("on", !!on);
-    el.dataset.on = on ? "1" : "0";
-  }
-  fEnabledSwitch.addEventListener("click", () => {
-    setSwitch(fEnabledSwitch, fEnabledSwitch.dataset.on !== "1");
-  });
-
-  document.getElementById("btnTestStream").addEventListener("click", () => testStream(fUrl.value));
-  document.getElementById("closeChannelModal").addEventListener("click", closeChannelModalFn);
-  document.getElementById("cancelChannel").addEventListener("click", closeChannelModalFn);
-  channelOverlay.addEventListener("click", (e) => { if (e.target === channelOverlay) closeChannelModalFn(); });
-
-  document.getElementById("saveChannel").addEventListener("click", () => {
-    const name = fName.value.trim();
-    const url = fUrl.value.trim();
-    if (!name){ showBanner("error", "Channel name is required.", 4000); fName.focus(); return; }
-    if (!url){ showBanner("error", "Stream URL is required.", 4000); fUrl.focus(); return; }
-
-    const obj = {
-      id: editingIndex !== null ? channels[editingIndex].id : uid(),
-      name, url,
-      type: fType.value,
-      logo: fLogo.value.trim(),
-      fallback_url: fFallback.value.trim(),
-      offair_url: fOffair.value.trim(),
-      enabled: fEnabledSwitch.dataset.on === "1"
-    };
-
-    if (editingIndex !== null){
-      channels[editingIndex] = obj;
-    } else {
-      channels.push(obj);
-    }
-    markDirty();
-    closeChannelModalFn();
-    render();
-    showBanner("info", editingIndex !== null ? "Channel updated. Remember to Save & Publish." : "Channel added. Remember to Save & Publish.", 4000);
-  });
-
-  function deleteChannel(index){
-    const ch = channels[index];
-    const ok = confirm(`Delete "${ch.name}"? This can't be undone until you Save & Publish.`);
-    if (!ok) return;
-    channels.splice(index, 1);
-    markDirty();
-    render();
-    showBanner("info", `"${ch.name}" removed. Remember to Save & Publish.`, 4000);
+  function markClean(card){
+    card.classList.remove('is-dirty');
+    const status = card.querySelector('.row-status');
+    status.textContent = 'Saved';
+    status.className = 'row-status saved';
+    setTimeout(() => {
+      if (!card.classList.contains('is-dirty')){
+        status.textContent = 'Untouched';
+        status.className = 'row-status';
+      }
+    }, 3000);
   }
 
-  document.getElementById("btnAdd").addEventListener("click", () => openChannelModal("add"));
-  document.getElementById("btnEmptyAdd").addEventListener("click", () => openChannelModal("add"));
-
-  /* ============ Settings modal ============ */
-  function openSettings(){
-    const cfg = loadConfig();
-    sSourceUrl.value = cfg.sourceUrl || "";
-    sApiKey.value = cfg.apiKey || "";
-    sProjectId.value = cfg.projectId || "";
-    sStorageBucket.value = cfg.storageBucket || "";
-    sAppId.value = cfg.appId || "";
-    sStoragePath.value = cfg.storagePath || "streams.json";
-    settingsOverlay.classList.add("show");
-  }
-  function closeSettings(){ settingsOverlay.classList.remove("show"); }
-
-  document.getElementById("btnSettings").addEventListener("click", openSettings);
-  document.getElementById("closeSettingsModal").addEventListener("click", closeSettings);
-  document.getElementById("cancelSettings").addEventListener("click", closeSettings);
-  settingsOverlay.addEventListener("click", (e) => { if (e.target === settingsOverlay) closeSettings(); });
-
-  document.getElementById("saveSettings").addEventListener("click", () => {
-    const cfg = {
-      sourceUrl: sSourceUrl.value.trim(),
-      apiKey: sApiKey.value.trim(),
-      projectId: sProjectId.value.trim(),
-      storageBucket: sStorageBucket.value.trim(),
-      appId: sAppId.value.trim(),
-      storagePath: sStoragePath.value.trim() || "streams.json"
-    };
-    saveConfig(cfg);
-    closeSettings();
-    showBanner("success", "Settings saved.", 3000);
-  });
-
-  document.getElementById("btnReloadSource").addEventListener("click", () => {
-    const url = sSourceUrl.value.trim();
-    if (!url){ showBanner("error", "Enter a source URL first.", 3500); return; }
-    fetchFromSource(url, true);
-  });
-
-  /* ============ Load channels ============ */
-  function fetchFromSource(url, isManualReload){
-    showBanner("info", "Loading streams.json from source…", 2500);
-    fetch(url, { cache: "no-store" })
+  // ---------- Load ----------
+  function loadChannels(){
+    gridLabel.textContent = 'Loading lineup…';
+    return fetch('streams.json', { cache: 'no-store' })
       .then(res => {
-        if (!res.ok) throw new Error("HTTP " + res.status);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
       })
       .then(data => {
-        channels = normalize(data.channels);
-        usingSeed = false;
-        clearDirty();
-        render();
-        showBanner("success", "Loaded " + channels.length + " channel(s) from source.", 4000);
+        channels = Array.isArray(data.channels) ? data.channels : [];
+        renderChannels(channels);
+        setDirty(0);
       })
       .catch(err => {
-        showBanner("error", "Couldn't load from source (" + err.message + ")." + (isManualReload ? "" : " Showing demo data instead."), 6000);
-        if (!isManualReload && channels.length === 0){
-          channels = normalize(SEED.channels);
-          usingSeed = true;
-          render();
+        gridLabel.textContent = 'Could not load streams.json';
+        toast('Load failed', escapeHtml(err.message || 'Unknown error'), true);
+      });
+  }
+
+  // ---------- Save ----------
+  function saveChannels(successMessage, singleCard){
+    const payload = JSON.stringify({ channels });
+    const btns = document.querySelectorAll('[data-action="save-one"], #saveAllBtn');
+    btns.forEach(b => b.disabled = true);
+
+    return fetch('save.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    })
+      .then(res => res.json().catch(() => {
+        throw new Error('Server did not return valid JSON.');
+      }).then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok || !data.success){
+          throw new Error(data && data.message ? data.message : 'Save failed.');
         }
+        toast('Saved', successMessage || data.message || 'Changes written to streams.json.', false);
+
+        if (singleCard){
+          markClean(singleCard);
+        } else {
+          document.querySelectorAll('.card.is-dirty').forEach(markClean);
+        }
+        recalcDirty();
+      })
+      .catch(err => {
+        toast('Save failed', escapeHtml(err.message || 'Unknown error'), true);
+      })
+      .finally(() => {
+        btns.forEach(b => b.disabled = false);
       });
   }
 
-  function initialLoad(){
-    const cfg = loadConfig();
-    if (cfg.sourceUrl){
-      fetchFromSource(cfg.sourceUrl, false);
-    } else {
-      channels = normalize(SEED.channels);
-      usingSeed = true;
-      render();
-      showBanner("info", "Showing demo data. Open Settings to point this dashboard at your live streams.json.", 7000);
-    }
-  }
-
-  /* ============ Backup / Restore ============ */
-  document.getElementById("btnBackup").addEventListener("click", () => {
-    const payload = { channels: channels.map(stripInternal) };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    a.href = URL.createObjectURL(blob);
-    a.download = `streams-backup-${ts}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    showBanner("success", "Backup downloaded.", 3500);
-  });
-
-  function stripInternal(ch){
-    const { id, ...rest } = ch;
-    return rest;
-  }
-
-  document.getElementById("btnRestore").addEventListener("click", () => {
-    document.getElementById("restoreInput").click();
-  });
-  document.getElementById("restoreInput").addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try{
-        const data = JSON.parse(reader.result);
-        if (!data || !Array.isArray(data.channels)) throw new Error("Missing 'channels' array");
-        channels = normalize(data.channels);
-        usingSeed = false;
-        markDirty();
-        render();
-        showBanner("success", `Restored ${channels.length} channel(s) from backup. Remember to Save & Publish.`, 5000);
-      }catch(err){
-        showBanner("error", "Restore failed: " + err.message, 6000);
-      }
-      e.target.value = "";
-    };
-    reader.readAsText(file);
-  });
-
-  /* ============ Save & Publish ============ */
-  let fbApp = null;
-  function getFirebaseStorage(cfg){
-    if (!fbApp){
-      fbApp = firebase.initializeApp({
-        apiKey: cfg.apiKey,
-        authDomain: cfg.projectId ? `${cfg.projectId}.firebaseapp.com` : undefined,
-        projectId: cfg.projectId,
-        storageBucket: cfg.storageBucket,
-        appId: cfg.appId
-      });
-    }
-    return firebase.storage();
-  }
-
-  document.getElementById("btnSave").addEventListener("click", () => {
-    const cfg = loadConfig();
-    const payload = { channels: channels.map(stripInternal) };
-    const json = JSON.stringify(payload, null, 2);
-
-    const hasFirebase = cfg.apiKey && cfg.storageBucket && cfg.appId;
-    if (!hasFirebase){
-      showBanner("error", "No Firebase publish target configured. Downloading a backup instead — add Firebase details in Settings to auto-publish.", 6500);
-      document.getElementById("btnBackup").click();
+  saveAllBtn.addEventListener('click', () => {
+    if (dirtyCount === 0){
+      toast('Nothing to save', 'There are no unsaved changes in the lineup.', false);
       return;
     }
-
-    showBanner("info", "Publishing streams.json…", 3000);
-    try{
-      const storage = getFirebaseStorage(cfg);
-      const path = cfg.storagePath || "streams.json";
-      const ref = storage.ref().child(path);
-      ref.putString(json, "raw", { contentType: "application/json" })
-        .then(() => {
-          clearDirty();
-          showBanner("success", "Playlist updated — changes live in 30 seconds.", 6000);
-        })
-        .catch(err => {
-          showBanner("error", "Publish failed: " + err.message, 7000);
-        });
-    }catch(err){
-      showBanner("error", "Publish failed: " + err.message, 7000);
-    }
+    saveChannels(`Saved ${dirtyCount} channel${dirtyCount === 1 ? '' : 's'}.`);
   });
 
-  window.addEventListener("beforeunload", (e) => {
-    if (dirty){
-      e.preventDefault();
-      e.returnValue = "";
+  reloadBtn.addEventListener('click', () => {
+    if (dirtyCount > 0){
+      const proceed = confirm('You have unsaved changes that will be discarded. Reload anyway?');
+      if (!proceed) return;
     }
+    loadChannels();
   });
 
-  /* ============ Init ============ */
-  initialLoad();
+  loadChannels();
 })();
 </script>
+
 </body>
 </html>
