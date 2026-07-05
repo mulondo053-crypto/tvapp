@@ -1,12 +1,12 @@
 {
-  "channels": [
-    {
-      "name": "Soweto TV",
-      "url": "https://cdn.freevisiontv.co.za/.../chunklist_b1550000.m3u8",
-      "type": "HLS",
-      "logo": "https://example.com/logo.png",
-      "fallback_url": "https://example.com/backup.m3u8",
-      "offair_url": "https://example.com/loop.mp4"
-    }
-  ]
+    "channels": [
+        {
+            "name": "Soweto TV",
+            "url": "https://cdn-eu-west-prod-ingest-infra-dacast-com.akamaized.net/84703e31-874e-492d-8425-054e47525db0/source/index.m3u8",
+            "type": "HLS",
+            "logo": "https://example.com/logo.png",
+            "fallback_url": "https://wildearth-xumo.amagi.tv/masterR720P.m3u8",
+            "offair_url": "https://plumeriagroup.co.za/live/Offline.mp4"
+        }
+    ]
 }
