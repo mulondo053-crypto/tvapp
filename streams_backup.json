@@ -1,0 +1,12 @@
+{
+    "channels": [
+        {
+            "name": "My TV",
+            "url": "https://3abn.bozztv.com/3abn1/PraiseHim/smil:PraiseHim.smil/chunklist_w1462936393_b1128000_slen.m3u8",
+            "type": "HLS",
+            "logo": "https://example.com/logo.png",
+            "fallback_url": "https://example.com/backup.m3u8",
+            "offair_url": "https://example.com/loop.mp4"
+        }
+    ]
+}
